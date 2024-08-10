@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "Connect4-Rustbot"
+name = "connect4-rustbot"
 version = "0.1.0"

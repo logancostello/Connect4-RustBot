@@ -1,3 +1,6 @@
+use std::path::Path;
+use std::fs;
+
 struct Position {
     board: [i64; 2],
     turn: usize,
@@ -49,20 +52,73 @@ impl Position {
             } 
         false
     }
-}    
+}
+
+// returns start position
+fn start_position() -> Position {
+    Position {
+        board: [0, 0],
+        turn: 0,
+        moves: Vec::new(),
+        heights: [0; 7]
+    }
+}
+
+
+// takes a valid test position key and turns it into a position
+fn key_to_position(key: String) -> Position {
+    let mut p = start_position();
+    for keymove in key.chars() {
+        // test keys use 1-7, i use 0-6
+        p.make_move(keymove.to_digit(10).unwrap() as usize - 1);
+    }
+    p
+}
+
+// takes file path, tests score func on those position
+// returns [% correct, avg solve time, avg # of positions searched]
+fn check_progress<P: AsRef<Path>>(file_path: P) -> [f64; 3] {
+    // read the desired file
+    let contents = match fs::read_to_string(&file_path) {
+        Ok(contents) => contents,
+        Err(e) => {
+            eprintln!("Error reading file: {}", e); 
+            return [-1.0, -1.0, -1.0] 
+        },
+    };
+
+    let mut num_correct: f64 = 0.0;
+    let mut total_time: f64 = 0.0;
+    let mut total_num_positions: f64 = 0.0;
+
+    //for each line, test the score func
+    for line in contents.lines() {
+        let mut parts = line.split_whitespace();
+        let key = parts.next().unwrap();
+        let actual_score: i8 = parts.next().unwrap().parse().expect("Not a valid number");
+
+        let mut p = key_to_position(key.to_string());
+        let (predicted_score, time, num_positions) = score(&mut p);
+        
+        if actual_score == predicted_score {num_correct += 1.0};
+        total_time += time;
+        total_num_positions += num_positions;
+
+        // println!("actual: {actual_score}, predicted: {predicted_score}");
+    }
+
+    // return progress information
+    [num_correct / 10.0, total_time / 1000.0, total_num_positions / 1000.0]
+}
+
+// takes a position, returns it score, the time it took, and how many positions were searched
+fn score(p: &mut Position) -> (i8, f64, f64) {
+    (0, 1.0, 1.0)
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn start_position() -> Position {
-        Position {
-            board: [0, 0],
-            turn: 0,
-            moves: Vec::new(),
-            heights: [0; 7]
-        }
-    }
 
     #[test]
     fn test_make_move_0() {
@@ -115,7 +171,7 @@ mod tests {
         let mut p = start_position();
 
         p.make_moves(vec![1, 2, 4, 6, 2, 2, 2, 1]);
-        for i in 0..8 {
+        for _i in 0..8 {
             p.undo_move();
         }
 
@@ -173,5 +229,20 @@ mod tests {
         p.make_moves(vec![0, 0, 0, 0, 3, 0, 3, 0, 3, 1]);
         assert_eq!(p.is_connect_four(), false);
     }
-}
 
+    #[test]
+    fn test_key_to_position_0() {
+        let p = key_to_position(String::from("111"));
+
+        assert_eq!(p.board, [5, 2]);
+        assert_eq!(p.turn, 1);
+        assert_eq!(p.moves, vec![0, 0, 0]);
+        assert_eq!(p.heights, [3, 0, 0, 0, 0, 0, 0]);
+    }
+
+    // #[test]
+    // fn test_progress_check() {
+    //     let a = check_progress("test_files/End-Easy.txt");
+    //     assert_eq!(a, [1.0, 1.0, 1.0]);
+    // }
+}
