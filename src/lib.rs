@@ -126,7 +126,7 @@ fn score(pos: &mut Position, alpha: &mut i8, beta: &mut i8) -> (i8, u64) {
     // check for connect 4
     if pos.is_connect_four() {return (best_score + ((pos.moves.len() + pos.turn) as i8) / 2, total_positions)}
 
-    let move_options = [0, 1, 2, 3, 4, 5, 6];
+    let move_options = [3, 2, 4, 1, 5, 0, 6];
     for mv in move_options {
         if pos.is_legal_move(mv) {
             pos.make_move(mv);
@@ -319,9 +319,16 @@ mod tests {
         assert_eq!(s, 2);
     }
 
-    //  #[test]
-    // fn test_progress_check() {
-    //     let result = check_progress("test_files/Middle-Easy.txt");
-    //     assert_eq!(result, (0.0, 0.0, 0));
+    // #[test]
+    // fn test_score_iewbrfgij() { // player 2 can win in 4 moves
+    //     let mut pos = key_to_position(String::from("7532455277545526"));
+    //     let (s, _p) = score(&mut pos, &mut -22, &mut 22);
+    //     assert_eq!(s, 2);
     // }
+
+     #[test]
+    fn test_progress_check() {
+        let result = check_progress("test_files/Middle-Easy.txt");
+        assert_eq!(result, (0.0, 0.0, 0));
+    }
 }
