@@ -13,3 +13,11 @@ Middle_Medium: n/a
 Start-Easy: n/a 
 Start-Medium: n/a 
 Start-Hard: n/a
+
+Version 2: Alpha-Beta Pruning
+End-Easy: 100%, 0.004447, 20,474
+Middle-Easy: n/a 
+Middle_Medium: n/a
+Start-Easy: n/a 
+Start-Medium: n/a 
+Start-Hard: n/a
