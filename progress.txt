@@ -1,0 +1,15 @@
+This file is to track the progress of the solver throughout its many iterations
+
+Entries will be recorded in the following format:
+test_filename: accuracy (%), avg time to solve (sec), avg number of positions searched
+
+If the entry is n/a, then it the current version takes too long to solve those positions in a reasonable amount of time.
+(A reasonable amount of time is a few seconds max)
+
+Version 1: Minimax
+End-Easy: 100%, 0.027447, 204,044
+Middle-Easy: n/a 
+Middle_Medium: n/a
+Start-Easy: n/a 
+Start-Medium: n/a 
+Start-Hard: n/a

@@ -1,5 +1,7 @@
 use std::path::Path;
 use std::fs;
+use std::time::{Duration, SystemTime};
+
 
 struct Position {
     board: [i64; 2],
@@ -77,50 +79,55 @@ fn key_to_position(key: String) -> Position {
 
 // takes file path, tests score func on those position
 // returns [% correct, avg solve time, avg # of positions searched]
-fn check_progress<P: AsRef<Path>>(file_path: P) -> [f64; 3] {
+fn check_progress<P: AsRef<Path>>(file_path: P) -> (f64, f64, u64) {
     // read the desired file
     let contents = match fs::read_to_string(&file_path) {
         Ok(contents) => contents,
         Err(e) => {
             eprintln!("Error reading file: {}", e); 
-            return [-1.0, -1.0, -1.0] 
+            return (-1.0, -1.0, 1)
         },
     };
 
     let mut num_correct: f64 = 0.0;
-    let mut total_time: f64 = 0.0;
-    let mut total_num_positions: f64 = 0.0;
+    let mut total_time = Duration::new(0, 0);
+    let mut total_num_positions: u64 = 0;
 
+    let mut line_count = 0;
     //for each line, test the score func
     for line in contents.lines() {
+        line_count += 1;
         let mut parts = line.split_whitespace();
         let key = parts.next().unwrap();
         let actual_score: i8 = parts.next().unwrap().parse().expect("Not a valid number");
 
         let mut p = key_to_position(key.to_string());
-        // start timer here
+        let start = SystemTime::now();
         let (predicted_score, num_positions) = score(&mut p);
-        // end timer here
+        let end = SystemTime::now();
         
-        if actual_score == predicted_score {num_correct += 1.0};
-        // add time to total time
+        if actual_score == predicted_score {
+            num_correct += 1.0;
+            println!("{line_count}: {key} {num_positions} {predicted_score} Correct!");
+        } else {
+            println!("{line_count}: Incorrect.");
+        };
+
+        total_time += end.duration_since(start).expect("Time went backwards");
         total_num_positions += num_positions;
-
-        // println!("actual: {actual_score}, predicted: {predicted_score}");
     }
-
     // return progress information
-    [num_correct / 10.0, total_time / 1000.0, total_num_positions / 1000.0]
+    (num_correct / 10.0, (total_time.as_micros() / 1000) as f64 / 1_000_000.0, total_num_positions/ 1000)
 }
 
 // takes a position, returns it score and how many positions were searched
-fn score(pos: &mut Position) -> (i8, f64) {
+fn score(pos: &mut Position) -> (i8, u64) {
 
     // check for connect 4
-    if pos.is_connect_four() {return ((22 - ((pos.moves.len() + pos.turn) as i8) / 2) * -1, 1.0)}
+    if pos.is_connect_four() {return ((22 - ((pos.moves.len() + pos.turn) as i8) / 2) * -1, 1)}
 
     let mut best_score: i8 = -22;
-    let mut total_positions: f64 = 0.0;
+    let mut total_positions: u64 = 1;
 
     let move_options = [0, 1, 2, 3, 4, 5, 6];
     for mv in move_options {
@@ -132,7 +139,7 @@ fn score(pos: &mut Position) -> (i8, f64) {
             pos.undo_move();
         }
     }
-    if total_positions == 0.0 { best_score = 0 };
+    if total_positions == 1 { best_score = 0 };
     (best_score, total_positions)
 }
 
@@ -264,7 +271,6 @@ mod tests {
     fn test_score_0() { // player 1 won
         let mut pos = start_position();
         pos.make_moves(vec![0, 1, 0, 1, 0, 1, 0]);
-
         let (s, _p) = score(&mut pos);
         assert_eq!(s, -18)
     }
@@ -313,9 +319,9 @@ mod tests {
         assert_eq!(s, 2);
     }
 
-    // #[test]
+    //  #[test]
     // fn test_progress_check() {
-    //     let a = check_progress("test_files/End-Easy.txt");
-    //     assert_eq!(a, [1.0, 1.0, 1.0]);
+    //     let result = check_progress("test_files/Middle-Easy.txt");
+    //     assert_eq!(result, (0.0, 0.0, 0));
     // }
 }
