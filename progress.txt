@@ -6,6 +6,8 @@ test_filename: accuracy (%), avg time to solve (sec), avg number of positions se
 If the entry is n/a, then it the current version takes too long to solve those positions in a reasonable amount of time.
 (A reasonable amount of time is a few seconds max)
 
+Every time entry is on my M1 MacBook Air with 16gb of RAM. Additionally, my computer is charging for these tests.
+
 Version 1: Minimax
 End-Easy: 100%, 0.002227, 204,044
 Middle-Easy: n/a 
@@ -23,7 +25,7 @@ Start-Medium: n/a
 Start-Hard: n/a
 
 Version 3: Center First Move Ordering
-End-Easy: 100%, 0.000179, 12,103
+End-Easy: 100%, 0.000136, 12,103
 Middle-Easy: n/a 
 Middle_Medium: n/a
 Start-Easy: n/a 
