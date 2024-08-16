@@ -31,3 +31,11 @@ Middle_Medium: n/a
 Start-Easy: n/a 
 Start-Medium: n/a 
 Start-Hard: n/a
+
+Version 3.5: Optimization (better pruning, check tie earlier)
+End-Easy: 100%, 0.000038 3259
+Middle-Easy: n/a 
+Middle_Medium: n/a
+Start-Easy: n/a 
+Start-Medium: n/a 
+Start-Hard: n/a

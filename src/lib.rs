@@ -106,9 +106,14 @@ fn check_progress<P: AsRef<Path>>(file_path: P) -> (f64, f64, u64) {
         let end = SystemTime::now();
         
         let duration = end.duration_since(start).expect("Time went backwards");
-        if actual_score == predicted_score { num_correct += 1.0 };
-            
-        println!("{line_count}: {} {key}", duration.as_secs());
+        if actual_score == predicted_score { 
+            num_correct += 1.0;
+            println!("{line_count}: {} {key}", duration.as_secs()); 
+        } else {
+            println!("INCORRECT {line_count}: {} {key}", duration.as_secs());
+        };
+        
+        
 
         total_time += duration;
         total_num_positions += num_positions;
@@ -117,30 +122,37 @@ fn check_progress<P: AsRef<Path>>(file_path: P) -> (f64, f64, u64) {
     (num_correct / 10.0, (total_time.as_micros() / 1000) as f64 / 1_000_000.0, total_num_positions/ 1000)
 }
 
-// takes a position, returns it score and how many positions were searched
+// takes a position, returns its score and how many positions were searched
 fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
 
-    let mut best_score: i8 = -22;
+    // track # position searched
+    // unnecessary for scoring a position, but useful for tracking progress
     let mut total_positions: u64 = 1;
 
     // check for connect 4
-    if pos.is_connect_four() {return (best_score + ((pos.moves.len() + pos.turn) as i8) / 2, total_positions)}
+    if pos.is_connect_four() {return (-22 + ((pos.moves.len() + pos.turn) as i8) / 2, total_positions)}
 
+    // check for tie
+    if pos.moves.len() == 42 {return (0, total_positions)};
+
+    // beta should be <= the max possible score
+    let max_possible_score: i8 = 21 - (pos.moves.len() - pos.turn) as i8 / 2;
+    if beta > max_possible_score {beta = max_possible_score};
+
+    // search possible moves
     let move_options = [3, 2, 4, 1, 5, 0, 6];
     for mv in move_options {
         if pos.is_legal_move(mv) {
             pos.make_move(mv);
             let (mut s, p) = score(pos,  -1 * beta, -1 * alpha);
             pos.undo_move();
-            s *= -1;
-            if s > best_score { best_score = s }
+            s *= -1; 
             total_positions += p;
             if s > alpha { alpha = s };
-            if alpha > beta { break }
+            if alpha >= beta { break }
         }
     }
-    if total_positions == 1 { best_score = 0 };
-    (best_score, total_positions)
+    (alpha, total_positions)
 }
 
 #[cfg(test)]
@@ -328,7 +340,7 @@ mod tests {
 
      #[test]
     fn test_progress_check() {
-        let result = check_progress("test_files/Middle-Easy.txt");
+        let result = check_progress("test_files/End-Easy.txt");
         assert_eq!(result, (0.0, 0.0, 0));
     }
 }
