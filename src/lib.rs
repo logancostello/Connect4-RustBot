@@ -137,7 +137,10 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
 
     // beta should be <= the max possible score
     let max_possible_score: i8 = 21 - (pos.moves.len() - pos.turn) as i8 / 2;
-    if beta > max_possible_score {beta = max_possible_score};
+    if beta > max_possible_score {
+        beta = max_possible_score;
+        if alpha >= beta {return (beta, total_positions)} // alpha beta window is empty
+    }
 
     // search possible moves
     let move_options = [3, 2, 4, 1, 5, 0, 6];
@@ -331,15 +334,8 @@ mod tests {
         assert_eq!(s, 2);
     }
 
-    // #[test]
-    // fn test_score_iewbrfgij() { // player 2 can win in 4 moves
-    //     let mut pos = key_to_position(String::from("7532455277545526"));
-    //     let (s, _p) = score(&mut pos, &mut -22, &mut 22);
-    //     assert_eq!(s, 2);
-    // }
-
-     #[test]
-    fn test_progress_check() {
+    #[test]
+    fn test_progress_check() { // used to check efficiency progress, will not pass
         let result = check_progress("test_files/End-Easy.txt");
         assert_eq!(result, (0.0, 0.0, 0));
     }
