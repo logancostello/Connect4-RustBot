@@ -54,6 +54,19 @@ impl Position {
         false
     }
 
+    // check if position is a guarenteed loss (assumes can't win this turn)
+    pub fn is_losing_position(&self) -> bool {
+        let threats = self.opponents_threats();
+        let board = self.board[0] | self.board[1] | 283691315109952; 
+
+        let live_threats = (threats & board << 1) | (threats & 1); // & 1 since no bit can be undo bit 0
+        let stacked_threats = threats & threats >> 1;
+
+        if i64::count_ones(live_threats) > 1 { return true };
+        if live_threats & stacked_threats > 0 { return true };
+        false
+    }
+
     // gets threats of opponent
     pub fn opponents_threats(&self) -> i64 {
         let open: i64 = !(self.board[0] | self.board[1] | 283691315109952 | 71776119061217280);
@@ -85,6 +98,8 @@ impl Position {
         threats
 
     }
+
+    
 }
 
 // takes a position, returns its score and how many positions were searched
@@ -104,6 +119,9 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
             return ((43 - pos.moves.len() as i8) / 2, total_positions);
         }
     }
+
+    // check if the position is a loss on opponents next turn (since we cannot win on this turn)
+    if pos.is_losing_position() { return ((-42 + pos.moves.len() as i8) / 2 ,total_positions)}
 
     // beta should be <= the max possible score
     let max_possible_score: i8 = (41 - pos.moves.len() as i8) / 2;
@@ -185,14 +203,14 @@ mod tests {
                 num_correct += 1.0;
                 println!("{line_count}: {} {key}", duration.as_secs()); 
             } else {
-                println!("INCORRECT {line_count}: {} {key}", duration.as_secs());
+                println!("INCORRECT {line_count}: {} {key} {actual_score} {predicted_score}", duration.as_secs());
             };
 
             total_time += duration;
             total_num_positions += num_positions;
         }
         // return progress information
-        (num_correct / 10.0, (total_time.as_micros() / 1000) as f64 / 1_000_000.0, total_num_positions/ 1000)
+        (num_correct / 10.0, (total_time.as_nanos() / 1000) as f64 / 1_000_000_000.0, total_num_positions/ 1000)
     }
 
     #[test]
@@ -385,9 +403,25 @@ mod tests {
         assert_eq!(pos.opponents_threats(), 2_i64.pow(42) + 2_i64.pow(18));
     } 
 
-    // #[test]
-    // fn test_progress_check() { // used to check efficiency progress, will not pass
-    //     let result = check_progress("test_files/End-Easy.txt");
-    //     assert_eq!(result, (0.0, 0.0, 0));
-    // }
+    #[test]
+    fn is_losing_0() {
+        let mut p = start_position();
+        p.make_moves(vec![2, 2, 3, 3, 4]);
+
+        assert_eq!(p.is_losing_position(), true)
+    }
+
+    #[test]
+    fn is_losing_1() {
+        let mut p = start_position();
+        p.make_moves(vec![1, 6, 1, 6, 2, 5, 2, 4, 3, 4, 3]);
+
+        assert_eq!(p.is_losing_position(), true);
+    }
+
+    #[test]
+    fn test_progress_check() { // used to check efficiency progress, will not pass
+        let result = check_progress("test_files/End-Easy.txt");
+        assert_eq!(result, (0.0, 0.0, 0));
+    }
 }
