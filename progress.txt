@@ -47,3 +47,11 @@ Middle_Medium: 100%, 0.471179 seconds, 40,396,714 positions
 Start-Easy: n/a 
 Start-Medium: n/a 
 Start-Hard: n/a
+
+Version 5: Early loss & losing move detection
+End-Easy: 100%, 0.000003 seconds, 94 positions
+Middle-Easy: 100%, 0.022833 seconds, 1,280,166 positions
+Middle_Medium: 100%, 0.456450 seconds, 24,984,148 positions
+Start-Easy: n/a 
+Start-Medium: n/a 
+Start-Hard: n/a

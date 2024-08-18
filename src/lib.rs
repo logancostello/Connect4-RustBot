@@ -54,12 +54,19 @@ impl Position {
         false
     }
 
-    // check if position is a guarenteed loss (assumes can't win this turn)
-    pub fn is_losing_position(&self) -> bool {
-        let threats = self.opponents_threats();
-        let board = self.board[0] | self.board[1] | 283691315109952; 
+    // check if a move opens an opportunity for the opponent to win
+    pub fn is_losing_move(&self, col: usize, threats: i64) -> bool {
+        threats & (1 << (7 * col) << self.heights[col] + 1) > 0
+    }
 
-        let live_threats = (threats & board << 1) | (threats & 1); // & 1 since no bit can be undo bit 0
+    // returns col of must play move, all otherwise
+    pub fn must_play_move(&self, live_threats: i64) -> usize {
+        if live_threats == 0 { return 7 }
+        (live_threats.ilog2() / 7) as usize
+    }
+
+    // check if position is a guarenteed loss (assumes can't win this turn)
+    pub fn is_losing_position(&self, threats: i64, live_threats: i64) -> bool {
         let stacked_threats = threats & threats >> 1;
 
         if i64::count_ones(live_threats) > 1 { return true };
@@ -99,8 +106,14 @@ impl Position {
 
     }
 
-    
+    // get opponents live threats
+    pub fn opponents_live_threats(&self, threats: i64) -> i64 {
+        let board = self.board[0] | self.board[1] | 283691315109952; 
+        (threats & board << 1) | (threats & 1) // & 1 since no bit can be undo bit 0
+    }
 }
+
+
 
 // takes a position, returns its score and how many positions were searched
 fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
@@ -120,19 +133,34 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
         }
     }
 
+    let threats = pos.opponents_threats();
+    let live_threats = pos.opponents_live_threats(threats);
+
     // check if the position is a loss on opponents next turn (since we cannot win on this turn)
-    if pos.is_losing_position() { return ((-42 + pos.moves.len() as i8) / 2 ,total_positions)}
+    if pos.is_losing_position(threats, live_threats) { return ((-42 + pos.moves.len() as i8) / 2 ,total_positions) }
 
     // beta should be <= the max possible score
     let max_possible_score: i8 = (41 - pos.moves.len() as i8) / 2;
     if beta > max_possible_score {
         beta = max_possible_score;
-        if alpha >= beta {return (beta, total_positions)} // alpha beta window is empty
+        if alpha >= beta { return (beta, total_positions) } // alpha beta window is empty
+    }
+
+    // if there is a must play move, it is our only option
+    let must_play_move = pos.must_play_move(live_threats);
+    if must_play_move < 7 {
+        // ideally we could update move options to just have the must play move, but 
+        // when move options is a vec! it is much slower than when it is an array
+        pos.make_move(must_play_move);
+        let (mut s, p) = score(pos, -1 * beta, -1 * alpha);
+        pos.undo_move();
+        total_positions += p;
+        return (-1 * s, total_positions);
     }
 
     // search further
     for mv in move_options {
-        if pos.is_legal_move(mv) {
+        if pos.is_legal_move(mv) && !pos.is_losing_move(mv, threats) {
             pos.make_move(mv);
             let (mut s, p) = score(pos, -1 * beta, -1 * alpha);
             pos.undo_move();
@@ -210,7 +238,7 @@ mod tests {
             total_num_positions += num_positions;
         }
         // return progress information
-        (num_correct / 10.0, (total_time.as_nanos() / 1000) as f64 / 1_000_000_000.0, total_num_positions/ 1000)
+        (num_correct / 10.0, (total_time.as_micros() / 1000) as f64 / 1_000_000.0, total_num_positions/ 1000)
     }
 
     #[test]
@@ -404,19 +432,46 @@ mod tests {
     } 
 
     #[test]
-    fn is_losing_0() {
+    fn is_losing_position_0() {
         let mut p = start_position();
         p.make_moves(vec![2, 2, 3, 3, 4]);
+        let threats = p.opponents_threats();
+        let live = p.opponents_live_threats(threats);
 
-        assert_eq!(p.is_losing_position(), true)
+        assert_eq!(p.is_losing_position(threats, live), true)
     }
 
     #[test]
-    fn is_losing_1() {
+    fn is_losing_position_1() {
         let mut p = start_position();
         p.make_moves(vec![1, 6, 1, 6, 2, 5, 2, 4, 3, 4, 3]);
+        let threats = p.opponents_threats();
+        let live = p.opponents_live_threats(threats);
 
-        assert_eq!(p.is_losing_position(), true);
+        assert_eq!(p.is_losing_position(threats, live), true);
+    }
+
+    #[test]
+    fn is_losing_move_0() {
+        let mut p = start_position();
+        p.make_moves(vec![0, 2, 0, 2, 3, 3, 4, 4]);
+
+        let live = p.opponents_threats();
+
+        assert_eq!(p.is_losing_move(5, live), true);
+        assert_eq!(p.is_losing_move(1, live), true);
+        assert_eq!(p.is_losing_move(6, live), false);
+    }
+
+    #[test]
+    fn is_losing_move_1() {
+        let mut p = start_position();
+        p.make_moves(vec![0, 1, 0, 1, 0, 1, 1, 0, 2, 1, 2, 2, 2, 2, 3, 2, 3, 3, 3, 3, 4, 5]);
+
+        let live = p.opponents_threats();
+        
+        assert_eq!(p.is_losing_move(4, live), true);
+        assert_eq!(p.is_losing_move(3, live), false);
     }
 
     #[test]
