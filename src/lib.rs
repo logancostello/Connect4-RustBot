@@ -42,18 +42,6 @@ impl Position {
         self.board[self.turn] ^= undo_mask;
     }
 
-    // check for connect 4. only look at the the player who just made a move
-    pub fn is_connect_four(&self) -> bool {
-        let b = self.board[1 - self.turn];
-        if ((b & b << 1 & b << 2 & b << 3) |
-            (b & b << 7 & b << 14 & b << 21) |
-            (b & b << 6 & b << 12 & b << 18) |
-            (b & b << 8 & b << 16 & b << 24)) != 0 {
-                return true
-            } 
-        false
-    }
-
     // check if a move results in connect 4
     pub fn is_winning_move(&self, col: usize) -> bool {
         let b = self.board[self.turn] | (1 << (7 * col) << self.heights[col]);
@@ -124,7 +112,7 @@ fn check_progress<P: AsRef<Path>>(file_path: P) -> (f64, f64, u64) {
         } else {
             println!("INCORRECT {line_count}: {} {key}", duration.as_secs());
         };
-        
+
         total_time += duration;
         total_num_positions += num_positions;
     }
@@ -252,38 +240,38 @@ mod tests {
     }
 
     #[test]
-    fn test_is_connect_four_0() { // horizontal
+    fn test_is_winning_move_0() { // horizontal
         let mut p = start_position();
-        p.make_moves(vec![3, 3, 2, 2, 4, 4, 5]);
-        assert_eq!(p.is_connect_four(), true);
+        p.make_moves(vec![3, 3, 2, 2, 4, 4]);
+        assert_eq!(p.is_winning_move(5), true);
     }
 
     #[test]
-    fn test_is_connect_four_1() { // vertical
+    fn test_is_winning_move_1() { // vertical
         let mut p = start_position();
-        p.make_moves(vec![3, 2, 3, 2, 3, 2, 0, 2]);
-        assert_eq!(p.is_connect_four(), true);
+        p.make_moves(vec![3, 2, 3, 2, 3, 2, 0]);
+        assert_eq!(p.is_winning_move(2), true);
     }
 
     #[test]
-    fn test_is_connect_four_2() { // positive diagonol
+    fn test_is_winning_move_2() { // positive diagonol
         let mut p = start_position();
-        p.make_moves(vec![0, 1, 1, 2, 2, 3, 2, 3, 3, 4, 3]);
-        assert_eq!(p.is_connect_four(), true);
+        p.make_moves(vec![0, 1, 1, 2, 2, 3, 2, 3, 3, 4]);
+        assert_eq!(p.is_winning_move(3), true);
     }
 
     #[test]
-    fn test_is_connect_four_3() { // negative diagonol
+    fn test_is_winning_move_3() { // negative diagonol
         let mut p = start_position();
-        p.make_moves(vec![0, 6, 5, 5, 4, 4, 3, 4, 3, 3, 2, 3]);
-        assert_eq!(p.is_connect_four(), true);
+        p.make_moves(vec![0, 6, 5, 5, 4, 4, 3, 4, 3, 3, 2]);
+        assert_eq!(p.is_winning_move(3), true);
     }
 
     #[test]
-    fn test_is_connect_four_4() { // vertical wrapping 
+    fn test_is_winning_move_4() { // vertical wrapping 
         let mut p = start_position();
-        p.make_moves(vec![0, 0, 0, 0, 3, 0, 3, 0, 3, 1]);
-        assert_eq!(p.is_connect_four(), false);
+        p.make_moves(vec![0, 0, 0, 0, 3, 0, 3, 0, 3]);
+        assert_eq!(p.is_winning_move(1), false);
     }
 
     #[test]
