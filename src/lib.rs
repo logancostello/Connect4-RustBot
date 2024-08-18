@@ -53,71 +53,38 @@ impl Position {
             } 
         false
     }
-}
 
-// returns start position
-fn start_position() -> Position {
-    Position {
-        board: [0, 0],
-        turn: 0,
-        moves: Vec::new(),
-        heights: [0; 7]
-    }
-}
+    // gets threats of opponent
+    pub fn opponents_threats(&self) -> i64 {
+        let open: i64 = !(self.board[0] | self.board[1] | 283691315109952 | 71776119061217280);
+        let opp: i64 = self.board[1 - self.turn];
 
+        let mut threats: i64 = 0;
 
-// takes a valid test position key and turns it into a position
-fn key_to_position(key: String) -> Position {
-    let mut p = start_position();
-    for keymove in key.chars() {
-        // test keys use 1-7, i use 0-6
-        p.make_move(keymove.to_digit(10).unwrap() as usize - 1);
-    }
-    p
-}
+        // vertical threats
+        threats |= open & opp << 1 & opp << 2 & opp << 3;
 
-// takes file path, tests score func on those position
-// returns [% correct, avg solve time, avg # of positions searched]
-fn check_progress<P: AsRef<Path>>(file_path: P) -> (f64, f64, u64) {
-    // read the desired file
-    let contents = match fs::read_to_string(&file_path) {
-        Ok(contents) => contents,
-        Err(e) => {
-            eprintln!("Error reading file: {}", e); 
-            return (-1.0, -1.0, 1)
-        },
-    };
-
-    let mut num_correct: f64 = 0.0;
-    let mut total_time = Duration::new(0, 0);
-    let mut total_num_positions: u64 = 0;
-
-    let mut line_count = 0;
-    //for each line, test the score func
-    for line in contents.lines() {
-        line_count += 1;
-        let mut parts = line.split_whitespace();
-        let key = parts.next().unwrap();
-        let actual_score: i8 = parts.next().unwrap().parse().expect("Not a valid number");
-
-        let mut p = key_to_position(key.to_string());
-        let start = SystemTime::now();
-        let (predicted_score, num_positions) = score(&mut p, -22, 22);
-        let end = SystemTime::now();
+        // horizontal threats
+        threats |= open & opp << 7 & opp << 14 & opp << 21;
+        threats |= opp >> 7 & open & opp << 7 & opp << 14;
+        threats |= opp >> 7 & opp >> 14 & open & opp << 7;
+        threats |= opp >> 7 & opp >> 14 & opp >> 21 & open;
         
-        let duration = end.duration_since(start).expect("Time went backwards");
-        if actual_score == predicted_score { 
-            num_correct += 1.0;
-            println!("{line_count}: {} {key}", duration.as_secs()); 
-        } else {
-            println!("INCORRECT {line_count}: {} {key}", duration.as_secs());
-        };
+        // positive diagonol threats
+        threats |= open & opp << 8 & opp << 16 & opp << 24;
+        threats |= opp >> 8 & open & opp << 8 & opp << 16;
+        threats |= opp >> 16 & opp >> 8 & open & opp << 8;
+        threats |= opp >> 24 & opp >> 16 & opp >> 8 & open;
 
-        total_time += duration;
-        total_num_positions += num_positions;
+        // negative diagonol threats
+        threats |= open & opp << 6 & opp << 12 & opp << 18;
+        threats |= opp >> 6 & open & opp << 6 & opp << 12;
+        threats |= opp >> 12 & opp >> 6 & open & opp << 6;
+        threats |= opp >> 18 & opp >> 12 & opp >> 6 & open;
+
+        threats
+
     }
-    // return progress information
-    (num_correct / 10.0, (total_time.as_micros() / 1000) as f64 / 1_000_000.0, total_num_positions/ 1000)
 }
 
 // takes a position, returns its score and how many positions were searched
@@ -163,6 +130,70 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // returns start position
+    fn start_position() -> Position {
+        Position {
+            board: [0, 0],
+            turn: 0,
+            moves: Vec::new(),
+            heights: [0; 7]
+        }
+    }
+
+    // takes a valid test position key and turns it into a position
+    fn key_to_position(key: String) -> Position {
+        let mut p = start_position();
+        for keymove in key.chars() {
+            // test keys use 1-7, i use 0-6
+            p.make_move(keymove.to_digit(10).unwrap() as usize - 1);
+        }
+        p
+    }
+
+    // takes file path, tests score func on those position
+    // returns [% correct, avg solve time, avg # of positions searched]
+    fn check_progress<P: AsRef<Path>>(file_path: P) -> (f64, f64, u64) {
+        // read the desired file
+        let contents = match fs::read_to_string(&file_path) {
+            Ok(contents) => contents,
+            Err(e) => {
+                eprintln!("Error reading file: {}", e); 
+                return (-1.0, -1.0, 1)
+            },
+        };
+
+        let mut num_correct: f64 = 0.0;
+        let mut total_time = Duration::new(0, 0);
+        let mut total_num_positions: u64 = 0;
+
+        let mut line_count = 0;
+        //for each line, test the score func
+        for line in contents.lines() {
+            line_count += 1;
+            let mut parts = line.split_whitespace();
+            let key = parts.next().unwrap();
+            let actual_score: i8 = parts.next().unwrap().parse().expect("Not a valid number");
+
+            let mut p = key_to_position(key.to_string());
+            let start = SystemTime::now();
+            let (predicted_score, num_positions) = score(&mut p, -22, 22);
+            let end = SystemTime::now();
+            
+            let duration = end.duration_since(start).expect("Time went backwards");
+            if actual_score == predicted_score { 
+                num_correct += 1.0;
+                println!("{line_count}: {} {key}", duration.as_secs()); 
+            } else {
+                println!("INCORRECT {line_count}: {} {key}", duration.as_secs());
+            };
+
+            total_time += duration;
+            total_num_positions += num_positions;
+        }
+        // return progress information
+        (num_correct / 10.0, (total_time.as_micros() / 1000) as f64 / 1_000_000.0, total_num_positions/ 1000)
+    }
 
     #[test]
     fn test_make_move_0() {
@@ -320,8 +351,43 @@ mod tests {
     }
 
     #[test]
-    fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/End-Easy.txt");
-        assert_eq!(result, (0.0, 0.0, 0));
+    fn test_threats_0() { // horizontal
+        let mut pos = start_position();
+        pos.make_moves(vec![1, 1, 2, 2, 3, 3]);
+
+        assert_eq!(pos.opponents_threats(), 2 + 2_i64.pow(29));
     }
+
+    #[test]
+    fn test_threats_1() { // vertical
+        let mut pos = start_position();
+        pos.make_moves(vec![0, 1, 0, 1, 0, 1]);
+
+        assert_eq!(pos.opponents_threats(), 2_i64.pow(10));
+
+        pos.make_moves(vec![1, 0, 5, 6, 5, 6]);
+        assert_eq!(pos.opponents_threats(), 0);
+    }
+
+    #[test]
+    fn test_threats_2() { // positive diagonol
+        let mut pos = start_position();
+        pos.make_moves(vec![1, 1, 2, 3, 2, 2, 3, 3, 6, 3]);
+
+        assert_eq!(pos.opponents_threats(), 1 + 2_i64.pow(32));
+    } 
+
+    #[test]
+    fn test_threats_3() { // negative diagonol
+        let mut pos = start_position();
+        pos.make_moves(vec![5, 5, 4, 3, 4, 4, 3, 3, 1, 3]);
+
+        assert_eq!(pos.opponents_threats(), 2_i64.pow(42) + 2_i64.pow(18));
+    } 
+
+    // #[test]
+    // fn test_progress_check() { // used to check efficiency progress, will not pass
+    //     let result = check_progress("test_files/End-Easy.txt");
+    //     assert_eq!(result, (0.0, 0.0, 0));
+    // }
 }
