@@ -9,7 +9,7 @@ If the entry is n/a, then it the current version takes too long to solve those p
 Every time entry is on my M1 MacBook Air with 16gb of RAM. Additionally, my computer is charging for these tests.
 
 Version 1: Minimax
-End-Easy: 100%, 0.002227, 204,044
+End-Easy: 100%, 0.002227 seconds, 204,044 positions
 Middle-Easy: n/a 
 Middle_Medium: n/a
 Start-Easy: n/a 
@@ -17,7 +17,7 @@ Start-Medium: n/a
 Start-Hard: n/a
 
 Version 2: Alpha-Beta Pruning
-End-Easy: 100%, 0.000276, 20,474
+End-Easy: 100%, 0.000276 seconds, 20,474 positions
 Middle-Easy: n/a 
 Middle_Medium: n/a
 Start-Easy: n/a 
@@ -25,17 +25,25 @@ Start-Medium: n/a
 Start-Hard: n/a
 
 Version 3: Center First Move Ordering
-End-Easy: 100%, 0.000136, 12,103
+End-Easy: 100%, 0.000136 seconds, 12,103 positions
 Middle-Easy: n/a 
 Middle_Medium: n/a
 Start-Easy: n/a 
 Start-Medium: n/a 
 Start-Hard: n/a
 
-Version 3.5: Optimization (better pruning, check tie earlier)
-End-Easy: 100%, 0.000038 3121
+Version 3.5: Optimizations (better pruning, check tie earlier)
+End-Easy: 100%, 0.000038 seconds, 321 positions
 Middle-Easy: n/a 
 Middle_Medium: n/a
+Start-Easy: n/a 
+Start-Medium: n/a 
+Start-Hard: n/a
+
+Version 4: Winning move check
+End-Easy: 100%, 0.000003 seconds, 139 positions
+Middle-Easy: 100%, 0.024155 seconds, 2,081,790 positions
+Middle_Medium: 100%, 0.471179 seconds, 40,396,714 positions
 Start-Easy: n/a 
 Start-Medium: n/a 
 Start-Hard: n/a

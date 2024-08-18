@@ -53,6 +53,18 @@ impl Position {
             } 
         false
     }
+
+    // check if a move results in connect 4
+    pub fn is_winning_move(&self, col: usize) -> bool {
+        let b = self.board[self.turn] | (1 << (7 * col) << self.heights[col]);
+        if ((b & b << 1 & b << 2 & b << 3) |
+            (b & b << 7 & b << 14 & b << 21) |
+            (b & b << 6 & b << 12 & b << 18) |
+            (b & b << 8 & b << 16 & b << 24)) != 0 {
+                return true
+            } 
+        false
+    }
 }
 
 // returns start position
@@ -113,8 +125,6 @@ fn check_progress<P: AsRef<Path>>(file_path: P) -> (f64, f64, u64) {
             println!("INCORRECT {line_count}: {} {key}", duration.as_secs());
         };
         
-        
-
         total_time += duration;
         total_num_positions += num_positions;
     }
@@ -125,29 +135,33 @@ fn check_progress<P: AsRef<Path>>(file_path: P) -> (f64, f64, u64) {
 // takes a position, returns its score and how many positions were searched
 fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
 
-    // track # position searched
+    // track # positions searched
     // unnecessary for scoring a position, but useful for tracking progress
     let mut total_positions: u64 = 1;
 
-    // check for connect 4
-    if pos.is_connect_four() {return (-22 + ((pos.moves.len() + pos.turn) as i8) / 2, total_positions)}
-
-    // check for tie
+    // check if game is a tie
     if pos.moves.len() == 42 {return (0, total_positions)};
 
+    // check for a winning move
+    let move_options = [3, 2, 4, 1, 5, 0, 6];
+    for mv in move_options {
+        if pos.is_legal_move(mv) && pos.is_winning_move(mv) {
+            return ((43 - pos.moves.len() as i8) / 2, total_positions);
+        }
+    }
+
     // beta should be <= the max possible score
-    let max_possible_score: i8 = 21 - (pos.moves.len() - pos.turn) as i8 / 2;
+    let max_possible_score: i8 = (41 - pos.moves.len() as i8) / 2;
     if beta > max_possible_score {
         beta = max_possible_score;
         if alpha >= beta {return (beta, total_positions)} // alpha beta window is empty
     }
 
-    // search possible moves
-    let move_options = [3, 2, 4, 1, 5, 0, 6];
+    // search further
     for mv in move_options {
         if pos.is_legal_move(mv) {
             pos.make_move(mv);
-            let (mut s, p) = score(pos,  -1 * beta, -1 * alpha);
+            let (mut s, p) = score(pos, -1 * beta, -1 * alpha);
             pos.undo_move();
             s *= -1; 
             total_positions += p;
@@ -283,52 +297,35 @@ mod tests {
     }
 
     #[test]
-    fn test_score_0() { // player 1 won
-        let mut pos = start_position();
-        pos.make_moves(vec![0, 1, 0, 1, 0, 1, 0]);
-        let (s, _p) = score(&mut pos, -22, 22);
-        assert_eq!(s, -18)
-    }
-
-    #[test]
-    fn test_score_1() { // player 2 won
-        let mut pos = start_position();
-        pos.make_moves(vec![0, 1, 0, 1, 0, 1, 3, 1]);
-
-        let (s, _p) = score(&mut pos, -22, 22);
-        assert_eq!(s, -18)
-    }
-
-    #[test]
-    fn test_score_2() { // will be a tie in 1 move
+    fn test_score_0() { // will be a tie in 1 move
         let mut pos = key_to_position(String::from("11111122222234333334444455555567676776767"));
         let (s, _p) = score(&mut pos, -22, 22);
         assert_eq!(s, 0);
     }
 
     #[test]
-    fn test_score_3() { // will be a tie in 5 moves
+    fn test_score_1() { // will be a tie in 5 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556767677"));
         let (s, _p) = score(&mut pos, -22, 22);
         assert_eq!(s, 0);
     }
 
     #[test]
-    fn test_score_4() { // player 1 can win in 2 moves
+    fn test_score_2() { // player 1 can win in 2 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556767"));
         let (s, _p) = score(&mut pos, -22, 22);
         assert_eq!(s, 3);
     }
 
     #[test]
-    fn test_score_5() { // player 1 loses in 3 moves
+    fn test_score_3() { // player 1 loses in 3 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556766"));
         let (s, _p) = score(&mut pos, -22, 22);
         assert_eq!(s, -2);
     }
 
     #[test]
-    fn test_score_6() { // player 2 can win in 4 moves
+    fn test_score_4() { // player 2 can win in 4 moves
         let mut pos = key_to_position(String::from("111111222222343333344444555555676"));
         let (s, _p) = score(&mut pos, -22, 22);
         assert_eq!(s, 2);
