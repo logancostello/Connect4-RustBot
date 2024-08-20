@@ -1,12 +1,15 @@
 use std::path::Path;
 use std::fs;
 use std::time::{Duration, SystemTime};
+use rand::prelude::*;
 
 struct Position {
-    board: [i64; 2],
-    turn: usize,
-    moves: Vec<usize>,
-    heights: [usize; 7]
+    board: [i64; 2], // stores bitboards for each player
+    turn: usize, // tracks which player it is to play
+    moves: Vec<usize>, // history of moves
+    heights: [usize; 7], // tracks heights of each column
+    hash: u64, // key for the transposition table
+    zobrist_table: [u64; 84] // used for hashing bitboards into the key
 }
 
 impl Position {
@@ -18,6 +21,7 @@ impl Position {
 
     // receives a column to play in (assumed to be legal) and plays it
     pub fn make_move(&mut self, col: usize) {
+        self.hash ^= self.zobrist_table[col * 6 + self.heights[col] + 42 * self.turn];
         let move_mask: i64 = (1 << (7 * col)) << self.heights[col];
         self.board[self.turn] |= move_mask;
         self.turn = 1 - self.turn;
@@ -40,6 +44,7 @@ impl Position {
 
         let undo_mask: i64 = 1 << (7 * last_col + self.heights[last_col]);
         self.board[self.turn] ^= undo_mask;
+        self.hash ^= self.zobrist_table[last_col * 6 + self.heights[last_col] + 42 * self.turn];
     }
 
     // check if a move results in connect 4
@@ -113,7 +118,16 @@ impl Position {
     }
 }
 
-
+// generate zobrist hashing table
+fn generate_zobrist_table() -> [u64; 84] {
+    let mut zobrist_table: [u64; 84] = [0;84];
+    for turn in [0, 1] {
+        for spot in 0..42 {
+            zobrist_table[spot + 42 * turn] = rand::thread_rng().gen();
+        }
+    }
+    zobrist_table 
+}
 
 // takes a position, returns its score and how many positions were searched
 fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
@@ -183,7 +197,9 @@ mod tests {
             board: [0, 0],
             turn: 0,
             moves: Vec::new(),
-            heights: [0; 7]
+            heights: [0; 7],
+            hash: 0,
+            zobrist_table: generate_zobrist_table()
         }
     }
 
@@ -472,6 +488,21 @@ mod tests {
         
         assert_eq!(p.is_losing_move(4, live), true);
         assert_eq!(p.is_losing_move(3, live), false);
+    }
+
+    #[test]
+    fn test_hash_updating() {
+        let mut p = start_position();
+        let h1 = p.hash;
+        p.make_moves(vec![0, 1, 2, 3, 4, 5, 6]);
+        p.undo_move();
+        p.undo_move();
+        p.undo_move();
+        p.undo_move();
+        p.undo_move();
+        p.undo_move();
+        p.undo_move();
+        assert_eq!(h1, p.hash);
     }
 
     #[test]
