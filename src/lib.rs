@@ -4,12 +4,10 @@ use std::time::{Duration, SystemTime};
 use rand::prelude::*;
 
 struct Position {
-    board: [i64; 2], // stores bitboards for each player
+    board: [u64; 2], // stores bitboards for each player
     turn: usize, // tracks which player it is to play
     moves: Vec<usize>, // history of moves
     heights: [usize; 7], // tracks heights of each column
-    hash: u64, // key for the transposition table
-    zobrist_table: [u64; 84] // used for hashing bitboards into the key
 }
 
 impl Position {
@@ -21,8 +19,7 @@ impl Position {
 
     // receives a column to play in (assumed to be legal) and plays it
     pub fn make_move(&mut self, col: usize) {
-        self.hash ^= self.zobrist_table[col * 6 + self.heights[col] + 42 * self.turn];
-        let move_mask: i64 = (1 << (7 * col)) << self.heights[col];
+        let move_mask: u64 = (1 << (7 * col)) << self.heights[col];
         self.board[self.turn] |= move_mask;
         self.turn = 1 - self.turn;
         self.moves.push(col);
@@ -42,9 +39,8 @@ impl Position {
         self.heights[last_col] -= 1;
         self.turn = 1 - self.turn;
 
-        let undo_mask: i64 = 1 << (7 * last_col + self.heights[last_col]);
+        let undo_mask: u64 = 1 << (7 * last_col + self.heights[last_col]);
         self.board[self.turn] ^= undo_mask;
-        self.hash ^= self.zobrist_table[last_col * 6 + self.heights[last_col] + 42 * self.turn];
     }
 
     // check if a move results in connect 4
@@ -60,31 +56,31 @@ impl Position {
     }
 
     // check if a move opens an opportunity for the opponent to win
-    pub fn is_losing_move(&self, col: usize, threats: i64) -> bool {
+    pub fn is_losing_move(&self, col: usize, threats: u64) -> bool {
         threats & (1 << (7 * col) << self.heights[col] + 1) > 0
     }
 
     // returns col of must play move, all otherwise
-    pub fn must_play_move(&self, live_threats: i64) -> usize {
+    pub fn must_play_move(&self, live_threats: u64) -> usize {
         if live_threats == 0 { return 7 }
         (live_threats.ilog2() / 7) as usize
     }
 
     // check if position is a guarenteed loss (assumes can't win this turn)
-    pub fn is_losing_position(&self, threats: i64, live_threats: i64) -> bool {
+    pub fn is_losing_position(&self, threats: u64, live_threats: u64) -> bool {
         let stacked_threats = threats & threats >> 1;
 
-        if i64::count_ones(live_threats) > 1 { return true };
+        if u64::count_ones(live_threats) > 1 { return true };
         if live_threats & stacked_threats > 0 { return true };
         false
     }
 
     // gets threats of opponent
-    pub fn opponents_threats(&self) -> i64 {
-        let open: i64 = !(self.board[0] | self.board[1] | 283691315109952 | 71776119061217280);
-        let opp: i64 = self.board[1 - self.turn];
+    pub fn opponents_threats(&self) -> u64 {
+        let open: u64 = !(self.board[0] | self.board[1] | 283691315109952 | 71776119061217280);
+        let opp: u64 = self.board[1 - self.turn];
 
-        let mut threats: i64 = 0;
+        let mut threats: u64 = 0;
 
         // vertical threats
         threats |= open & opp << 1 & opp << 2 & opp << 3;
@@ -112,9 +108,19 @@ impl Position {
     }
 
     // get opponents live threats
-    pub fn opponents_live_threats(&self, threats: i64) -> i64 {
+    pub fn opponents_live_threats(&self, threats: u64) -> u64 {
         let board = self.board[0] | self.board[1] | 283691315109952; 
         (threats & board << 1) | (threats & 1) // & 1 since no bit can be undo bit 0
+    }
+
+    // get unique key that represents the position
+    pub fn hash(&self) -> u64 {
+        let mut hash = self.board[self.turn];
+        for i in 0..7 {
+            let move_mask: u64 = (1 << (7 * i)) << self.heights[i];
+            hash |= move_mask;
+        }
+        hash
     }
 }
 
@@ -129,8 +135,22 @@ fn generate_zobrist_table() -> [u64; 84] {
     zobrist_table 
 }
 
+// creates empty transposition table
+fn create_tt() -> [u8; 10] {
+    // the tt stores i8s, so 8 bits of information: 76543210
+    // Bit 0: 0 if free, 1 if spot is taken
+    // Bits 21: alpha-beta pruning flag. 00 for lowerbound, 01 for exact, 10 for upperbound
+    // Bits 6543: the absolute value of the score
+    // Bit 7: the sign of the score
+    [0; 10]
+}
+
 // takes a position, returns its score and how many positions were searched
-fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
+fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u8; 10]) -> (i8, u64) {
+
+    // see if position has already been searched
+
+    // track original alpha for storing in transposition table
 
     // track # positions searched
     // unnecessary for scoring a position, but useful for tracking progress
@@ -166,24 +186,27 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8) -> (i8, u64) {
         // ideally we could update move options to just have the must play move, but 
         // when move options is a vec! it is much slower than when it is an array
         pos.make_move(must_play_move);
-        let (mut s, p) = score(pos, -1 * beta, -1 * alpha);
+        let (s, p) = score(pos, -1 * beta, -1 * alpha, tt);
         pos.undo_move();
         total_positions += p;
-        return (-1 * s, total_positions);
-    }
-
-    // search further
-    for mv in move_options {
-        if pos.is_legal_move(mv) && !pos.is_losing_move(mv, threats) {
-            pos.make_move(mv);
-            let (mut s, p) = score(pos, -1 * beta, -1 * alpha);
-            pos.undo_move();
-            s *= -1; 
-            total_positions += p;
-            if s > alpha { alpha = s };
-            if alpha >= beta { break }
+        alpha = -1 * s
+    } else {
+        // search all legal moves 
+        for mv in move_options {
+            if pos.is_legal_move(mv) && !pos.is_losing_move(mv, threats) {
+                pos.make_move(mv);
+                let (mut s, p) = score(pos, -1 * beta, -1 * alpha, tt);
+                pos.undo_move();
+                s *= -1; 
+                total_positions += p;
+                if s > alpha { alpha = s };
+                if alpha >= beta { break }
+            }
         }
     }
+
+    // store score in transposition table for lookup if position is searched again
+
     (alpha, total_positions)
 }
 
@@ -197,9 +220,7 @@ mod tests {
             board: [0, 0],
             turn: 0,
             moves: Vec::new(),
-            heights: [0; 7],
-            hash: 0,
-            zobrist_table: generate_zobrist_table()
+            heights: [0; 7]
         }
     }
 
@@ -239,7 +260,7 @@ mod tests {
 
             let mut p = key_to_position(key.to_string());
             let start = SystemTime::now();
-            let (predicted_score, num_positions) = score(&mut p, -22, 22);
+            let (predicted_score, num_positions) = score(&mut p, -22, 22, &mut create_tt());
             let end = SystemTime::now();
             
             let duration = end.duration_since(start).expect("Time went backwards");
@@ -274,7 +295,7 @@ mod tests {
         let mut p = start_position();
 
         p.make_move(3);
-        assert_eq!(p.board[0], i64::pow(2, 21));
+        assert_eq!(p.board[0], u64::pow(2, 21));
         assert_eq!(p.board[1], 0);
         assert_eq!(p.heights, [0, 0, 0, 1, 0, 0, 0]);
         assert_eq!(p.turn, 1);
@@ -380,35 +401,35 @@ mod tests {
     #[test]
     fn test_score_0() { // will be a tie in 1 move
         let mut pos = key_to_position(String::from("11111122222234333334444455555567676776767"));
-        let (s, _p) = score(&mut pos, -22, 22);
+        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
         assert_eq!(s, 0);
     }
 
     #[test]
     fn test_score_1() { // will be a tie in 5 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556767677"));
-        let (s, _p) = score(&mut pos, -22, 22);
+        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
         assert_eq!(s, 0);
     }
 
     #[test]
     fn test_score_2() { // player 1 can win in 2 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556767"));
-        let (s, _p) = score(&mut pos, -22, 22);
+        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
         assert_eq!(s, 3);
     }
 
     #[test]
     fn test_score_3() { // player 1 loses in 3 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556766"));
-        let (s, _p) = score(&mut pos, -22, 22);
+        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
         assert_eq!(s, -2);
     }
 
     #[test]
     fn test_score_4() { // player 2 can win in 4 moves
         let mut pos = key_to_position(String::from("111111222222343333344444555555676"));
-        let (s, _p) = score(&mut pos, -22, 22);
+        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
         assert_eq!(s, 2);
     }
 
@@ -417,7 +438,7 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![1, 1, 2, 2, 3, 3]);
 
-        assert_eq!(pos.opponents_threats(), 2 + 2_i64.pow(29));
+        assert_eq!(pos.opponents_threats(), 2 + 2_u64.pow(29));
     }
 
     #[test]
@@ -425,7 +446,7 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![0, 1, 0, 1, 0, 1]);
 
-        assert_eq!(pos.opponents_threats(), 2_i64.pow(10));
+        assert_eq!(pos.opponents_threats(), 2_u64.pow(10));
 
         pos.make_moves(vec![1, 0, 5, 6, 5, 6]);
         assert_eq!(pos.opponents_threats(), 0);
@@ -436,7 +457,7 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![1, 1, 2, 3, 2, 2, 3, 3, 6, 3]);
 
-        assert_eq!(pos.opponents_threats(), 1 + 2_i64.pow(32));
+        assert_eq!(pos.opponents_threats(), 1 + 2_u64.pow(32));
     } 
 
     #[test]
@@ -444,7 +465,7 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![5, 5, 4, 3, 4, 4, 3, 3, 1, 3]);
 
-        assert_eq!(pos.opponents_threats(), 2_i64.pow(42) + 2_i64.pow(18));
+        assert_eq!(pos.opponents_threats(), 2_u64.pow(42) + 2_u64.pow(18));
     } 
 
     #[test]
@@ -491,18 +512,15 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_updating() {
+    fn test_hash_01() {
         let mut p = start_position();
-        let h1 = p.hash;
-        p.make_moves(vec![0, 1, 2, 3, 4, 5, 6]);
-        p.undo_move();
-        p.undo_move();
-        p.undo_move();
-        p.undo_move();
-        p.undo_move();
-        p.undo_move();
-        p.undo_move();
-        assert_eq!(h1, p.hash);
+        assert_eq!(p.hash(), 0b1000000100000010000001000000100000010000001);
+
+        p.make_move(3);
+        assert_eq!(p.hash(), 0b1000000100000010000010000000100000010000001);
+
+        p.make_move(3);
+        assert_eq!(p.hash(), 0b1000000100000010000101000000100000010000001);
     }
 
     #[test]
