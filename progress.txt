@@ -24,7 +24,7 @@ Start-Easy: n/a
 Start-Medium: n/a 
 Start-Hard: n/a
 
-Version 3: Center First Move Ordering
+Version 3.1: Center First Move Ordering
 End-Easy: 100%, 0.000136 seconds, 12,103 positions
 Middle-Easy: n/a 
 Middle_Medium: n/a
@@ -32,7 +32,7 @@ Start-Easy: n/a
 Start-Medium: n/a 
 Start-Hard: n/a
 
-Version 3.5: Optimizations (better pruning, check tie earlier)
+Version 3.2: Optimizations (better pruning, check tie earlier)
 End-Easy: 100%, 0.000038 seconds, 321 positions
 Middle-Easy: n/a 
 Middle_Medium: n/a
@@ -56,10 +56,18 @@ Start-Easy: n/a
 Start-Medium: n/a 
 Start-Hard: n/a
 
-Version 6: Transposition Table (100k positions)
+Version 6.1: Transposition Table (6.4mb, array)
 End-Easy: 100%, 0.000009 seconds, 49 positions
 Middle-Easy: 100%, 0.001681 seconds, 40,978 positions
 Middle_Medium: 100%, 0.034100 seconds, 836,605 positions
 Start-Easy: 100%, 9.514947 seconds, 252,198,230 positions (laptop slept during run. might've slowed performance)
 Start-Medium: n/a 
+Start-Hard: n/a
+
+Version 6.2: Larger Transposition Table (64mb, vector)
+End-Easy: 100%, 0.000427 seconds, 49 positions
+Middle-Easy: 100%, 0.001277 seconds, 16,011 positions
+Middle_Medium: 100%, 0.012167 seconds, 231,345 positions
+Start-Easy: 100%, 2.432711 seconds, 58,129,327 positions (i believe this is typically slower but with massive outliers)
+Start-Medium: 100%, 1.906684 seconds, 42,985,765 positions
 Start-Hard: n/a

@@ -136,18 +136,18 @@ fn generate_zobrist_table() -> [u64; 84] {
 }
 
 // creates empty transposition table
-fn create_tt() -> [u64; 1000000] {
+fn create_tt() -> Vec<u64> {
     // the tt stores u64s, so 64 bits of information
     // Bits 0-48 hold the key, to confirm we are colliding while searching
     // Bit 49-50 hold the alphabeta flag. 00 for lowerbound, 01 for exact, 10 for upperbound
     // Bit 51 holds the sign of the score. 1 is negative
     // Bits 52-56 holds the absolute value of the score
     // Bits 57-63 are unused
-    [0; 1000000]
+    vec![0; 1000000]
 }
 
 // takes a position, returns its score and how many positions were searched
-fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u64; 1000000]) -> (i8, u64) {
+fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Vec<u64>) -> (i8, u64) {
 
     // use prior search if one exists
     let hash = pos.hash();
@@ -156,11 +156,6 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u64; 1000000
         let flag = tt_record >> 49 & 0b11;
         let mut score: i8 = (tt_record >> 52 & 0b1111) as i8;
         if (tt_record >> 51 & 0b1) == 1 { score *= -1 };
-        // println!("");
-        // println!("entry: {:064b}", tt_record);
-        // println!("hash:                 {:049b}", hash);
-        // println!("flag: {:b}", flag);
-        // println!("score: {:b} {}", score, score);
         if flag == 0b00 { // lowerbound
             if score > alpha { alpha = score }
         } else if flag == 0b01 { // exact
@@ -234,22 +229,13 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u64; 1000000
     if alpha < 0 { into_tt |= 1 << 51 } // record sign
     into_tt |= (alpha.abs() as u64) << 52;// record abs of score
 
-    // println!("");
-    // println!("alpha: {:b} {}", alpha, alpha);
-
     if alpha <= original_alpha { // upperbound
         into_tt |= 0b10 << 49;
-        // println!("flag: 10");
     } else if alpha >= beta { // lowerbound
         into_tt |= 0b00 << 49;
-        // println!("flag: 00");
     } else { // exact
         into_tt |= 0b01 << 49;
-        // println!("flag: 01");
     }
-    // println!("hash : {:64b}", hash);
-    // println!("entry: {:64b}", into_tt);
-    // println!("");
     tt[(hash % 1000000) as usize] = into_tt; // store the value
 
     (alpha, total_positions)
@@ -582,9 +568,9 @@ mod tests {
         assert_eq!(p.hash(), 0b0000001000000100000011000000111111110000001111111);
     }
 
-    // #[test]
-    // fn test_progress_check() { // used to check efficiency progress, will not pass
-    //     let result = check_progress("test_files/Start-Easy.txt");
-    //     assert_eq!(result, (0.0, 0.0, 0));
-    // }
+    #[test]
+    fn test_progress_check() { // used to check efficiency progress, will not pass
+        let result = check_progress("test_files/End-Easy.txt");
+        assert_eq!(result, (0.0, 0.0, 0));
+    }
 }
