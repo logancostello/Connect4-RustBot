@@ -55,3 +55,11 @@ Middle_Medium: 100%, 0.456450 seconds, 24,984,148 positions
 Start-Easy: n/a 
 Start-Medium: n/a 
 Start-Hard: n/a
+
+Version 6: Transposition Table (100k positions)
+End-Easy: 100%, 0.000009 seconds, 49 positions
+Middle-Easy: 100%, 0.001681 seconds, 40,978 positions
+Middle_Medium: 100%, 0.034100 seconds, 836,605 positions
+Start-Easy: 100%, 9.514947 seconds, 252,198,230 positions (laptop slept during run. might've slowed performance)
+Start-Medium: n/a 
+Start-Hard: n/a

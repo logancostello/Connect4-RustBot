@@ -136,21 +136,44 @@ fn generate_zobrist_table() -> [u64; 84] {
 }
 
 // creates empty transposition table
-fn create_tt() -> [u8; 10] {
-    // the tt stores i8s, so 8 bits of information: 76543210
-    // Bit 0: 0 if free, 1 if spot is taken
-    // Bits 21: alpha-beta pruning flag. 00 for lowerbound, 01 for exact, 10 for upperbound
-    // Bits 6543: the absolute value of the score
-    // Bit 7: the sign of the score
-    [0; 10]
+fn create_tt() -> [u64; 1000000] {
+    // the tt stores u64s, so 64 bits of information
+    // Bits 0-48 hold the key, to confirm we are colliding while searching
+    // Bit 49-50 hold the alphabeta flag. 00 for lowerbound, 01 for exact, 10 for upperbound
+    // Bit 51 holds the sign of the score. 1 is negative
+    // Bits 52-56 holds the absolute value of the score
+    // Bits 57-63 are unused
+    [0; 1000000]
 }
 
 // takes a position, returns its score and how many positions were searched
-fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u8; 10]) -> (i8, u64) {
+fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u64; 1000000]) -> (i8, u64) {
 
-    // see if position has already been searched
+    // use prior search if one exists
+    let hash = pos.hash();
+    let tt_record: u64 = tt[(pos.hash() % 1000000) as usize];
+    if hash == (tt_record & (2_u64.pow(49) - 1)) { // confirm record is for the position we are searching
+        let flag = tt_record >> 49 & 0b11;
+        let mut score: i8 = (tt_record >> 52 & 0b1111) as i8;
+        if (tt_record >> 51 & 0b1) == 1 { score *= -1 };
+        // println!("");
+        // println!("entry: {:064b}", tt_record);
+        // println!("hash:                 {:049b}", hash);
+        // println!("flag: {:b}", flag);
+        // println!("score: {:b} {}", score, score);
+        if flag == 0b00 { // lowerbound
+            if score > alpha { alpha = score }
+        } else if flag == 0b01 { // exact
+            return (score, 0);
+        } else { // upperbound
+            if score < beta { beta = score }
+        }
+
+        if alpha >= beta { return (alpha, 0) };
+    }
 
     // track original alpha for storing in transposition table
+    let original_alpha = alpha;
 
     // track # positions searched
     // unnecessary for scoring a position, but useful for tracking progress
@@ -171,7 +194,7 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u8; 10]) -> 
     let live_threats = pos.opponents_live_threats(threats);
 
     // check if the position is a loss on opponents next turn (since we cannot win on this turn)
-    if pos.is_losing_position(threats, live_threats) { return ((-42 + pos.moves.len() as i8) / 2 ,total_positions) }
+    if pos.is_losing_position(threats, live_threats) { return ((-42 + pos.moves.len() as i8) / 2, total_positions) }
 
     // beta should be <= the max possible score
     let max_possible_score: i8 = (41 - pos.moves.len() as i8) / 2;
@@ -191,6 +214,7 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u8; 10]) -> 
         total_positions += p;
         alpha = -1 * s
     } else {
+    
         // search all legal moves 
         for mv in move_options {
             if pos.is_legal_move(mv) && !pos.is_losing_move(mv, threats) {
@@ -206,6 +230,27 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut [u8; 10]) -> 
     }
 
     // store score in transposition table for lookup if position is searched again
+    let mut into_tt: u64 = hash; // record key
+    if alpha < 0 { into_tt |= 1 << 51 } // record sign
+    into_tt |= (alpha.abs() as u64) << 52;// record abs of score
+
+    // println!("");
+    // println!("alpha: {:b} {}", alpha, alpha);
+
+    if alpha <= original_alpha { // upperbound
+        into_tt |= 0b10 << 49;
+        // println!("flag: 10");
+    } else if alpha >= beta { // lowerbound
+        into_tt |= 0b00 << 49;
+        // println!("flag: 00");
+    } else { // exact
+        into_tt |= 0b01 << 49;
+        // println!("flag: 01");
+    }
+    // println!("hash : {:64b}", hash);
+    // println!("entry: {:64b}", into_tt);
+    // println!("");
+    tt[(hash % 1000000) as usize] = into_tt; // store the value
 
     (alpha, total_positions)
 }
@@ -512,7 +557,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_01() {
+    fn test_hash_0() {
         let mut p = start_position();
         assert_eq!(p.hash(), 0b1000000100000010000001000000100000010000001);
 
@@ -524,8 +569,22 @@ mod tests {
     }
 
     #[test]
-    fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/End-Easy.txt");
-        assert_eq!(result, (0.0, 0.0, 0));
+    fn test_hash_1() {
+        let mut p = start_position();
+        p.make_moves(vec![0, 0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 6, 6, 6, 6, 6, 6]);
+        assert_eq!(p.hash(), 0b1010101000000100000100110101001010100001010001010);
     }
+
+    #[test]
+    fn test_hash_2() {
+        let mut p = start_position();
+        p.make_moves(vec![0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3]);
+        assert_eq!(p.hash(), 0b0000001000000100000011000000111111110000001111111);
+    }
+
+    // #[test]
+    // fn test_progress_check() { // used to check efficiency progress, will not pass
+    //     let result = check_progress("test_files/Start-Easy.txt");
+    //     assert_eq!(result, (0.0, 0.0, 0));
+    // }
 }
