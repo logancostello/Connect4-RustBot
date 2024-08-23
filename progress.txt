@@ -68,6 +68,6 @@ Version 6.2: Larger Transposition Table (64mb, heap allocated)
 End-Easy: 100%, 0.000427 seconds, 49 positions
 Middle-Easy: 100%, 0.001277 seconds, 16,011 positions
 Middle_Medium: 100%, 0.012167 seconds, 231,345 positions
-Start-Easy: 100%, 2.432711 seconds, 58,129,327 positions (seems slower than above but the above has massive outliers)
-Start-Medium: 100%, 1.906684 seconds, 42,985,765 positions
+Start-Easy: 100%, 2.432711 seconds, 58,129,327 positions 
+Start-Medium: 100%, 1.906684 seconds, 42,985,765 positions (not really sure why this is faster than above. i think it's typically slower but the above has massive outliers)
 Start-Hard: n/a
