@@ -56,7 +56,7 @@ Start-Easy: n/a
 Start-Medium: n/a 
 Start-Hard: n/a
 
-Version 6.1: Transposition Table (6.4mb, array)
+Version 6.1: Transposition Table (6.4mb, stack allocated)
 End-Easy: 100%, 0.000009 seconds, 49 positions
 Middle-Easy: 100%, 0.001681 seconds, 40,978 positions
 Middle_Medium: 100%, 0.034100 seconds, 836,605 positions
@@ -64,10 +64,10 @@ Start-Easy: 100%, 9.514947 seconds, 252,198,230 positions (laptop slept during r
 Start-Medium: n/a 
 Start-Hard: n/a
 
-Version 6.2: Larger Transposition Table (64mb, vector)
+Version 6.2: Larger Transposition Table (64mb, heap allocated)
 End-Easy: 100%, 0.000427 seconds, 49 positions
 Middle-Easy: 100%, 0.001277 seconds, 16,011 positions
 Middle_Medium: 100%, 0.012167 seconds, 231,345 positions
-Start-Easy: 100%, 2.432711 seconds, 58,129,327 positions (i believe this is typically slower but with massive outliers)
+Start-Easy: 100%, 2.432711 seconds, 58,129,327 positions (seems slower than above but the above has massive outliers)
 Start-Medium: 100%, 1.906684 seconds, 42,985,765 positions
 Start-Hard: n/a

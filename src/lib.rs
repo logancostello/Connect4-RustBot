@@ -136,18 +136,18 @@ fn generate_zobrist_table() -> [u64; 84] {
 }
 
 // creates empty transposition table
-fn create_tt() -> Vec<u64> {
+fn create_tt() -> Box<[u64; 1000000]> {
     // the tt stores u64s, so 64 bits of information
     // Bits 0-48 hold the key, to confirm we are colliding while searching
     // Bit 49-50 hold the alphabeta flag. 00 for lowerbound, 01 for exact, 10 for upperbound
     // Bit 51 holds the sign of the score. 1 is negative
     // Bits 52-56 holds the absolute value of the score
     // Bits 57-63 are unused
-    vec![0; 1000000]
+    Box::new([0; 1000000])
 }
 
 // takes a position, returns its score and how many positions were searched
-fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Vec<u64>) -> (i8, u64) {
+fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1000000]>) -> (i8, u64) {
 
     // use prior search if one exists
     let hash = pos.hash();
@@ -570,7 +570,7 @@ mod tests {
 
     #[test]
     fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/End-Easy.txt");
+        let result = check_progress("test_files/Start-Medium.txt");
         assert_eq!(result, (0.0, 0.0, 0));
     }
 }
