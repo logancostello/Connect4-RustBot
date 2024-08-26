@@ -7,23 +7,30 @@ struct Position {
     board: [u64; 2], // stores bitboards for each player
     turn: usize, // tracks which player it is to play
     moves: Vec<usize>, // history of moves
-    heights: [usize; 7], // tracks heights of each column
+    height_mask: u64, // tracks next playable spot for each column
 }
 
 impl Position {
 
+    // returns height mask for a specific column
+    pub fn get_col_height_mask(&self, col: usize) -> u64 {
+        let col_mask: u64 = 0b1111111;
+        self.height_mask & col_mask << (7 * col)
+    }
+
     // given a column, returns if it can be played in or not
     pub fn  is_legal_move(&self, col: usize) -> bool {
-        self.heights[col] < 6
+        let top_row: u64 = 0b1000000100000010000001000000100000010000001000000;
+        self.get_col_height_mask(col) | top_row != top_row
     }
 
     // receives a column to play in (assumed to be legal) and plays it
     pub fn make_move(&mut self, col: usize) {
-        let move_mask: u64 = (1 << (7 * col)) << self.heights[col];
+        let move_mask = self.get_col_height_mask(col);
         self.board[self.turn] |= move_mask;
         self.turn = 1 - self.turn;
         self.moves.push(col);
-        self.heights[col] += 1;
+        self.height_mask ^= move_mask | move_mask << 1;
     }
 
     // play multiple moves. used for tests
@@ -36,16 +43,15 @@ impl Position {
     // undo a move
     pub fn undo_move(&mut self) {
         let last_col = self.moves.pop().unwrap();
-        self.heights[last_col] -= 1;
+        let undo_mask = self.get_col_height_mask(last_col) >> 1;
+        self.height_mask ^= undo_mask | undo_mask << 1;
         self.turn = 1 - self.turn;
-
-        let undo_mask: u64 = 1 << (7 * last_col + self.heights[last_col]);
         self.board[self.turn] ^= undo_mask;
     }
 
     // check if a move results in connect 4
     pub fn is_winning_move(&self, col: usize) -> bool {
-        let b = self.board[self.turn] | (1 << (7 * col) << self.heights[col]);
+        let b = self.board[self.turn] | self.get_col_height_mask(col);
         if ((b & b << 1 & b << 2 & b << 3) |
             (b & b << 7 & b << 14 & b << 21) |
             (b & b << 6 & b << 12 & b << 18) |
@@ -57,7 +63,7 @@ impl Position {
 
     // check if a move opens an opportunity for the opponent to win
     pub fn is_losing_move(&self, col: usize, threats: u64) -> bool {
-        threats & (1 << (7 * col) << self.heights[col] + 1) > 0
+        threats & self.get_col_height_mask(col) << 1 > 0
     }
 
     // returns col of must play move, all otherwise
@@ -115,24 +121,9 @@ impl Position {
 
     // get unique key that represents the position
     pub fn hash(&self) -> u64 {
-        let mut hash = self.board[self.turn];
-        for i in 0..7 {
-            let move_mask: u64 = (1 << (7 * i)) << self.heights[i];
-            hash |= move_mask;
-        }
-        hash
+        self.board[self.turn] | self.height_mask
     }
-}
-
-// generate zobrist hashing table
-fn generate_zobrist_table() -> [u64; 84] {
-    let mut zobrist_table: [u64; 84] = [0;84];
-    for turn in [0, 1] {
-        for spot in 0..42 {
-            zobrist_table[spot + 42 * turn] = rand::thread_rng().gen();
-        }
-    }
-    zobrist_table 
+    
 }
 
 // creates empty transposition table
@@ -251,7 +242,7 @@ mod tests {
             board: [0, 0],
             turn: 0,
             moves: Vec::new(),
-            heights: [0; 7]
+            height_mask: 0b0000001000000100000010000001000000100000010000001
         }
     }
 
@@ -316,7 +307,7 @@ mod tests {
         p.make_move(0);
         assert_eq!(p.board[0], 1);
         assert_eq!(p.board[1], 0);
-        assert_eq!(p.heights[0], 1);
+        assert_eq!(p.height_mask, 0b0000001000000100000010000001000000100000010000010);
         assert_eq!(p.turn, 1);
         assert_eq!(p.moves, vec![0]);
     }
@@ -328,7 +319,7 @@ mod tests {
         p.make_move(3);
         assert_eq!(p.board[0], u64::pow(2, 21));
         assert_eq!(p.board[1], 0);
-        assert_eq!(p.heights, [0, 0, 0, 1, 0, 0, 0]);
+        assert_eq!(p.height_mask, 0b0000001000000100000010000010000000100000010000001);
         assert_eq!(p.turn, 1);
         assert_eq!(p.moves, vec![3]);
     }
@@ -341,8 +332,9 @@ mod tests {
         assert_eq!(p.moves, vec![0, 0, 0]);
         assert_eq!(p.board, [5, 2]);
         assert_eq!(p.turn, 1);
-        assert_eq!(p.heights, [3, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(p.height_mask, 0b0000001000000100000010000001000000100000010001000);
     }
+    
 
     #[test]
     fn test_undo_move_0() {
@@ -367,8 +359,9 @@ mod tests {
         assert_eq!(p.board, [0, 0]);
         assert_eq!(p.turn, 0);
         assert_eq!(p.moves, vec![]);
-        assert_eq!(p.heights, [0; 7]);
+        assert_eq!(p.height_mask, 0b0000001000000100000010000001000000100000010000001);
     }
+    
 
     #[test]
     fn test_is_legal_move_0() {
@@ -383,6 +376,7 @@ mod tests {
         assert_eq!(p.is_legal_move(5), false);
         assert_eq!(p.is_legal_move(6), true);
     }
+    
 
     #[test]
     fn test_is_winning_move_0() { // horizontal
@@ -426,7 +420,7 @@ mod tests {
         assert_eq!(p.board, [5, 2]);
         assert_eq!(p.turn, 1);
         assert_eq!(p.moves, vec![0, 0, 0]);
-        assert_eq!(p.heights, [3, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(p.height_mask, 0b0000001000000100000010000001000000100000010001000);
     }
 
     #[test]
@@ -463,7 +457,7 @@ mod tests {
         let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
         assert_eq!(s, 2);
     }
-
+    
     #[test]
     fn test_threats_0() { // horizontal
         let mut pos = start_position();
@@ -570,7 +564,8 @@ mod tests {
 
     #[test]
     fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/Start-Medium.txt");
+        let result = check_progress("test_files/Middle-Easy.txt");
         assert_eq!(result, (0.0, 0.0, 0));
     }
+    
 }
