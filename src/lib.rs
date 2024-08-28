@@ -19,7 +19,7 @@ impl Position {
     }
 
     // given a column, returns if it can be played in or not
-    pub fn  is_legal_move(&self, col: usize) -> bool {
+    pub fn is_legal_move(&self, col: usize) -> bool {
         let top_row: u64 = 0b1000000100000010000001000000100000010000001000000;
         self.get_col_height_mask(col) | top_row != top_row
     }
@@ -137,8 +137,37 @@ fn create_tt() -> Box<[u64; 1000000]> {
     Box::new([0; 1000000])
 }
 
-// takes a position, returns its score and how many positions were searched
-fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1000000]>) -> (i8, u64) {
+// takes a position, iteratively deepens to find its score, returns score and # positions searched
+fn score(pos: &mut Position) -> (i8, u64) {
+    // null window search window = [alpha, alpha + 1]
+    // two return options, score > alpha or score <= alpha
+    // by using a small window, we quickly determine if the true score is better or worse than alpha
+    // we then adjust our window towards to direction of the true score
+
+    // counterintuitively these many searches are faster than a single search due to the small window resulting
+    // in a lot of pruning, and the transposition table helps us not repeat searches
+
+    let mut min: i8 = -1 * ((42 - pos.moves.len()) / 2) as i8;
+    let mut max: i8 = ((43 - pos.moves.len()) / 2) as i8;
+    let mut tt = create_tt();
+    let mut positions_searched: u64 = 0;
+
+    while min < max {
+        let mut med: i8 = min + (max - min) / 2;
+        if med <= 0 && min / 2 < med {med = min / 2}
+        else if med >= 0 && max / 2 > med {med = max / 2}
+
+        let (s, p) = negamax(pos, med, med + 1, &mut tt);
+        positions_searched += p;
+
+        if s <= med {max = s}
+        else {min = s}
+    }
+    (min, positions_searched)
+}
+
+// takes a position, does a negamax search, returns its score and how many positions were searched
+fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1000000]>) -> (i8, u64) {
 
     // use prior search if one exists
     let hash = pos.hash();
@@ -195,17 +224,16 @@ fn score(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 100
         // ideally we could update move options to just have the must play move, but 
         // when move options is a vec! it is much slower than when it is an array
         pos.make_move(must_play_move);
-        let (s, p) = score(pos, -1 * beta, -1 * alpha, tt);
+        let (s, p) = negamax(pos, -1 * beta, -1 * alpha, tt);
         pos.undo_move();
         total_positions += p;
         alpha = -1 * s
     } else {
-    
         // search all legal moves 
         for mv in move_options {
             if pos.is_legal_move(mv) && !pos.is_losing_move(mv, threats) {
                 pos.make_move(mv);
-                let (mut s, p) = score(pos, -1 * beta, -1 * alpha, tt);
+                let (mut s, p) = negamax(pos, -1 * beta, -1 * alpha, tt);
                 pos.undo_move();
                 s *= -1; 
                 total_positions += p;
@@ -282,7 +310,7 @@ mod tests {
 
             let mut p = key_to_position(key.to_string());
             let start = SystemTime::now();
-            let (predicted_score, num_positions) = score(&mut p, -22, 22, &mut create_tt());
+            let (predicted_score, num_positions) = score(&mut p);
             let end = SystemTime::now();
             
             let duration = end.duration_since(start).expect("Time went backwards");
@@ -426,35 +454,35 @@ mod tests {
     #[test]
     fn test_score_0() { // will be a tie in 1 move
         let mut pos = key_to_position(String::from("11111122222234333334444455555567676776767"));
-        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
+        let (s, _p) = score(&mut pos);
         assert_eq!(s, 0);
     }
 
     #[test]
     fn test_score_1() { // will be a tie in 5 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556767677"));
-        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
+        let (s, _p) = score(&mut pos);
         assert_eq!(s, 0);
     }
 
     #[test]
     fn test_score_2() { // player 1 can win in 2 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556767"));
-        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
+        let (s, _p) = score(&mut pos);
         assert_eq!(s, 3);
     }
 
     #[test]
     fn test_score_3() { // player 1 loses in 3 moves
         let mut pos = key_to_position(String::from("1111112222223433333444445555556766"));
-        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
+        let (s, _p) = score(&mut pos);
         assert_eq!(s, -2);
     }
 
     #[test]
     fn test_score_4() { // player 2 can win in 4 moves
         let mut pos = key_to_position(String::from("111111222222343333344444555555676"));
-        let (s, _p) = score(&mut pos, -22, 22, &mut create_tt());
+        let (s, _p) = score(&mut pos);
         assert_eq!(s, 2);
     }
     
@@ -564,8 +592,7 @@ mod tests {
 
     #[test]
     fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/Middle-Easy.txt");
+        let result = check_progress("test_files/Start-Hard.txt");
         assert_eq!(result, (0.0, 0.0, 0));
-    }
-    
+    }    
 }

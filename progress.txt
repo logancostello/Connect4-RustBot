@@ -8,6 +8,8 @@ If the entry is n/a, then it the current version takes too long to solve those p
 
 Every time entry is on my M1 MacBook Air with 16gb of RAM. Additionally, my computer is charging for these tests.
 
+Each of the 6 tests contain 1000 test positions.
+
 Version 1: Minimax
 End-Easy: 100%, 0.002227 seconds, 204,044 positions
 Middle-Easy: n/a 
@@ -78,4 +80,12 @@ Middle-Easy: 100%, 0.001208 seconds, 16,011 positions
 Middle_Medium: 100%, 0.011342 seconds, 231,345 positions
 Start-Easy: 100%, 2.308557 seconds, 58,129,327 positions
 Start-Medium: 100%, 1.799193 seconds, 42,985,765 positions
+Start-Hard: n/a
+
+Version 6.4: Iterative Deeping with Null Window Searches
+End-Easy: 100%, 0.000402 seconds, 66 positions
+Middle-Easy: 100%, 0.000475 seconds, 1,380 positions
+Middle_Medium: 100%, 0.007325 seconds, 151,119 positions
+Start-Easy: 100%, 0.002508 seconds, 53,894 positions
+Start-Medium: 100%, 0.674147 seconds, 17,148,825 positions
 Start-Hard: n/a
