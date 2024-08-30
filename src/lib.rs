@@ -58,7 +58,7 @@ impl Position {
             (b & b << 6 & b << 12 & b << 18) |
             (b & b << 8 & b << 16 & b << 24)) != 0 {
                 return true
-            } 
+        }
         false
     }
 
@@ -94,7 +94,7 @@ impl Position {
     }
 }
 
-// gets threats of opponent
+// gets threats of opponent, specifically where they are
 fn get_threats(board: [u64; 2], player: usize) -> u64 {
     let open: u64 = !(board[0] | board[1] | 283691315109952 | 71776119061217280);
     let opp: u64 = board[player];
@@ -196,9 +196,7 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
     // check if game is a tie
     if pos.moves.len() == 42 {return (0, total_positions)};
 
-    // sort moves to optimize pruning
     let mut move_options = [3, 2, 4, 1, 5, 0, 6];
-    move_options.sort_by(|a, b| order_moves(a, b, &pos));
 
     // check for a winning move
     for mv in move_options {
@@ -232,6 +230,9 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
         total_positions += p;
         alpha = -1 * s
     } else {
+        // sort moves to optimize pruning
+        let move_options = sort_moves(move_options, &pos);
+
         // search all legal moves 
         for mv in move_options {
             if pos.is_legal_move(mv) && !pos.is_losing_move(mv, threats) {
@@ -263,28 +264,39 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
     (alpha, total_positions)
 }
 
-// compares two moves, determines which should be search first
-// looking at better moves first results in more pruning from alpha-beta, so we guess which moves will be best
-fn order_moves(a: &usize, b: &usize, pos: &Position) -> Ordering {
-    // moves closer to the center are generally better, but they are already column sorted
-
-    // moves that create threats are, on average, better than moves that don't
-    let mut board_a = pos.board;
-    board_a[pos.turn] |= pos.get_col_height_mask(*a);
-
-    let mut board_b = pos.board;
-    board_b[pos.turn] |= pos.get_col_height_mask(*b);
-
-    let threats_from_a = get_threats(board_a, pos.turn).count_ones();
-    let threats_from_b = get_threats(board_b, pos.turn).count_ones();
+// gets the priority that a move should be searched
+fn move_priority(mv: usize, pos: &Position) -> u32 {
+    let mut priority: u32 = 0;
     
-    if threats_from_a > threats_from_b {
-        Ordering::Less
-    } else if threats_from_a == threats_from_b {
-        Ordering::Equal
-    } else {
-        Ordering::Greater
-    }    
+    // prefer moves that create threats
+    let mut board = pos.board;
+    board[pos.turn] |= pos.get_col_height_mask(mv);
+    priority += get_threats(board, pos.turn).count_ones();
+
+    priority
+}
+
+// manually implementing insertion sort as it is most efficient for small lists, 
+// and it will reduce the number of calls to get_threats, which is somewhat expensive
+fn sort_moves(mut arr: [usize; 7], pos: &Position) -> [usize; 7] {
+    // reduces number of call to get_threats by storing each in memory
+    let mut move_scores = arr.map(|x| move_priority(x, pos));
+
+    let mut i: usize = 1;
+    while i < 7 {
+        let mv = arr[i];
+        let move_score = move_scores[i];
+        let mut j = i;
+        while j > 0 && move_scores[j - 1] < move_score {
+            move_scores[j] = move_scores[j - 1];
+            arr[j] = arr[j - 1];
+            j -= 1;
+        }
+        move_scores[j] = move_score;
+        arr[j] = mv;
+        i += 1;
+    }
+    arr
 }
 
 
@@ -417,7 +429,6 @@ mod tests {
         assert_eq!(p.moves, vec![]);
         assert_eq!(p.height_mask, 0b0000001000000100000010000001000000100000010000001);
     }
-    
 
     #[test]
     fn test_is_legal_move_0() {
@@ -616,34 +627,35 @@ mod tests {
         p.make_moves(vec![0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3]);
         assert_eq!(p.hash(), 0b0000001000000100000011000000111111110000001111111);
     }
-
+    
     #[test]
-    fn test_order_moves_0() {
+    fn test_sort_moves_0() {
         let p = start_position();
         let mut moves = [3, 2, 4, 1, 5, 0, 6];
-        moves.sort_by(|a, b| order_moves(a, b, &p));
 
-        assert_eq!(moves, [3, 2, 4, 1, 5, 0, 6])   
+        let moves = sort_moves(moves, &p);
+
+        assert_eq!(moves, [3, 2, 4, 1, 5, 0, 6]);
     }
 
     #[test]
-    fn test_order_moves_1() {
+    fn test_sort_moves_1() {
         let mut p = start_position();
         p.make_moves(vec![2, 2, 3, 3]);
-        
         let mut moves = [3, 2, 4, 1, 5, 0, 6];
-        moves.sort_by(|a, b| order_moves(a, b, &p));
+
+        let moves = sort_moves(moves, &p);
 
         assert_eq!(moves, [4, 1, 5, 0, 3, 2, 6]);
     }
 
     #[test]
-    fn test_order_moves_2() {
+    fn test_sort_moves_2() {
         let mut p = start_position();
         p.make_moves(vec![0, 0, 1, 1, 5, 5, 4, 4]);
-        
         let mut moves = [3, 2, 4, 1, 5, 0, 6];
-        moves.sort_by(|a, b| order_moves(a, b, &p));
+
+        let moves = sort_moves(moves, &p);
 
         assert_eq!(moves, [3, 2, 6, 4, 1, 5, 0]);
     }
