@@ -90,10 +90,18 @@ Start-Easy: 100%, 0.002508 seconds, 53,894 positions
 Start-Medium: 100%, 0.674147 seconds, 17,148,825 positions
 Start-Hard: n/a
 
-Version 8: Threat First Move Ordering (Followed by center first move ordering)
+Version 8.1: Threat First Move Ordering (Followed by center first move ordering)
 End-Easy: 100%, 0.000414 seconds, 56 positions
 Middle-Easy: 100%, 0.000504 seconds, 469 positions
 Middle_Medium: 100%, 0.007362 seconds, 37,775 positions
 Start-Easy: 100%, 0.001121 seconds, 3,730 positions
 Start-Medium: 100%, 0.279928 seconds, 1,697,570 positions
 Start-Hard: n/a
+
+Version 8.2: Order Moves Only When Needed
+End-Easy: 100%, 0.000403 seconds, 56 positions
+Middle-Easy: 100%, 0.000492 seconds, 469 positions
+Middle_Medium: 100%, 0.006484 seconds, 37,775 positions
+Start-Easy: 100%, 0.001027 seconds, 3,730 positions
+Start-Medium: 100%, 0.226199 seconds, 1,697,570 positions
+Start-Hard: 100% 20.896086 seconds, 151,428,942 positions
