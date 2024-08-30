@@ -108,7 +108,7 @@ Start-Hard: 100% 20.896086 seconds, 151,428,942 positions
 
 Version 8.3: More Optimal Sorting
 End-Easy: 100%, 0.000399 seconds, 56 positions
-Middle-Easy: 100%, 0.000453 seconds,  positions
+Middle-Easy: 100%, 0.000453 seconds, 469 positions
 Middle_Medium: 100%, 0.003674 seconds, 37,775 positions
 Start-Easy: 100%, 0.000697 seconds, 3,730 positions
 Start-Medium: 100%, 0.119013 seconds, 1,697,570 positions
