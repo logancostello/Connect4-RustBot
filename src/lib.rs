@@ -84,8 +84,7 @@ impl Position {
 
     // get opponents live threats
     pub fn get_live_threats(&self, threats: u64) -> u64 {
-        let board = self.board[0] | self.board[1] | 283691315109952; 
-        (threats & board << 1) | (threats & 1) // & 1 since no bit can be undo bit 0
+        threats & self.height_mask
     }
 
     // get unique key that represents the position
@@ -278,25 +277,25 @@ fn move_priority(mv: usize, pos: &Position) -> u32 {
 
 // manually implementing insertion sort as it is most efficient for small lists, 
 // and it will reduce the number of calls to get_threats, which is somewhat expensive
-fn sort_moves(mut arr: [usize; 7], pos: &Position) -> [usize; 7] {
+fn sort_moves(mut moves: [usize; 7], pos: &Position) -> [usize; 7] {
     // reduces number of call to get_threats by storing each in memory
-    let mut move_scores = arr.map(|x| move_priority(x, pos));
+    let mut scores = moves.map(|x| move_priority(x, pos));
 
     let mut i: usize = 1;
     while i < 7 {
-        let mv = arr[i];
-        let move_score = move_scores[i];
+        let mv = moves[i];
+        let score = scores[i];
         let mut j = i;
-        while j > 0 && move_scores[j - 1] < move_score {
-            move_scores[j] = move_scores[j - 1];
-            arr[j] = arr[j - 1];
+        while j > 0 && scores[j - 1] < score {
+            scores[j] = scores[j - 1];
+            moves[j] = moves[j - 1];
             j -= 1;
         }
-        move_scores[j] = move_score;
-        arr[j] = mv;
+        scores[j] = score;
+        moves[j] = mv;
         i += 1;
     }
-    arr
+    moves
 }
 
 
@@ -662,7 +661,7 @@ mod tests {
 
     #[test]
     fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/Start-Hard.txt");
+        let result = check_progress("test_files/Start-Easy.txt");
         assert_eq!(result, (0.0, 0.0, 0));
     }    
 }
