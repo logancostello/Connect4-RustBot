@@ -92,7 +92,6 @@ impl Position {
     pub fn hash(&self) -> u64 {
         self.board[self.turn] | self.height_mask
     }
-    
 }
 
 // gets threats of opponent
@@ -199,7 +198,7 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
 
     // sort moves to optimize pruning
     let mut move_options = [3, 2, 4, 1, 5, 0, 6];
-    // move_options.sort_by(|a, b| order_moves(a, b));
+    move_options.sort_by(|a, b| order_moves(a, b, &pos));
 
     // check for a winning move
     for mv in move_options {
@@ -208,6 +207,7 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
         }
     }
 
+    // get threats for various reasons
     let threats = get_threats(pos.board, 1 - pos.turn);
     let live_threats = pos.get_live_threats(threats);
 
@@ -263,21 +263,29 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
     (alpha, total_positions)
 }
 
+// compares two moves, determines which should be search first
+// looking at better moves first results in more pruning from alpha-beta, so we guess which moves will be best
+fn order_moves(a: &usize, b: &usize, pos: &Position) -> Ordering {
+    // moves closer to the center are generally better, but they are already column sorted
 
-// fn order_moves(a: &usize, b: &usize) -> Ordering {
-//     // the moves are already column sorted when being passed in
-//     // therefore we do not need to consider column
-//     let threats_from_a = 
-//     let threats_from_b = 
+    // moves that create threats are, on average, better than moves that don't
+    let mut board_a = pos.board;
+    board_a[pos.turn] |= pos.get_col_height_mask(*a);
+
+    let mut board_b = pos.board;
+    board_b[pos.turn] |= pos.get_col_height_mask(*b);
+
+    let threats_from_a = get_threats(board_a, pos.turn).count_ones();
+    let threats_from_b = get_threats(board_b, pos.turn).count_ones();
     
-//     if threats_from_a > threats_from_b {
-//         Ordering::Less
-//     } else if threats_from_a == threats_from_b {
-//         Ordering::Equal
-//     } else {
-//         Ordering::Greater
-//     }    
-// }
+    if threats_from_a > threats_from_b {
+        Ordering::Less
+    } else if threats_from_a == threats_from_b {
+        Ordering::Equal
+    } else {
+        Ordering::Greater
+    }    
+}
 
 
 #[cfg(test)]
@@ -425,7 +433,6 @@ mod tests {
         assert_eq!(p.is_legal_move(6), true);
     }
     
-
     #[test]
     fn test_is_winning_move_0() { // horizontal
         let mut p = start_position();
@@ -611,8 +618,39 @@ mod tests {
     }
 
     #[test]
+    fn test_order_moves_0() {
+        let p = start_position();
+        let mut moves = [3, 2, 4, 1, 5, 0, 6];
+        moves.sort_by(|a, b| order_moves(a, b, &p));
+
+        assert_eq!(moves, [3, 2, 4, 1, 5, 0, 6])   
+    }
+
+    #[test]
+    fn test_order_moves_1() {
+        let mut p = start_position();
+        p.make_moves(vec![2, 2, 3, 3]);
+        
+        let mut moves = [3, 2, 4, 1, 5, 0, 6];
+        moves.sort_by(|a, b| order_moves(a, b, &p));
+
+        assert_eq!(moves, [4, 1, 5, 0, 3, 2, 6]);
+    }
+
+    #[test]
+    fn test_order_moves_2() {
+        let mut p = start_position();
+        p.make_moves(vec![0, 0, 1, 1, 5, 5, 4, 4]);
+        
+        let mut moves = [3, 2, 4, 1, 5, 0, 6];
+        moves.sort_by(|a, b| order_moves(a, b, &p));
+
+        assert_eq!(moves, [3, 2, 6, 4, 1, 5, 0]);
+    }
+
+    #[test]
     fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/Start-Easy.txt");
+        let result = check_progress("test_files/Start-Hard.txt");
         assert_eq!(result, (0.0, 0.0, 0));
     }    
 }
