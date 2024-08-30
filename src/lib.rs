@@ -82,38 +82,6 @@ impl Position {
         false
     }
 
-    // gets threats of opponent
-    pub fn get_threats(&self, player: usize) -> u64 {
-        let open: u64 = !(self.board[0] | self.board[1] | 283691315109952 | 71776119061217280);
-        let opp: u64 = self.board[player];
-
-        let mut threats: u64 = 0;
-
-        // vertical threats
-        threats |= open & opp << 1 & opp << 2 & opp << 3;
-
-        // horizontal threats
-        threats |= open & opp << 7 & opp << 14 & opp << 21;
-        threats |= opp >> 7 & open & opp << 7 & opp << 14;
-        threats |= opp >> 7 & opp >> 14 & open & opp << 7;
-        threats |= opp >> 7 & opp >> 14 & opp >> 21 & open;
-        
-        // positive diagonol threats
-        threats |= open & opp << 8 & opp << 16 & opp << 24;
-        threats |= opp >> 8 & open & opp << 8 & opp << 16;
-        threats |= opp >> 16 & opp >> 8 & open & opp << 8;
-        threats |= opp >> 24 & opp >> 16 & opp >> 8 & open;
-
-        // negative diagonol threats
-        threats |= open & opp << 6 & opp << 12 & opp << 18;
-        threats |= opp >> 6 & open & opp << 6 & opp << 12;
-        threats |= opp >> 12 & opp >> 6 & open & opp << 6;
-        threats |= opp >> 18 & opp >> 12 & opp >> 6 & open;
-
-        threats
-
-    }
-
     // get opponents live threats
     pub fn get_live_threats(&self, threats: u64) -> u64 {
         let board = self.board[0] | self.board[1] | 283691315109952; 
@@ -125,6 +93,37 @@ impl Position {
         self.board[self.turn] | self.height_mask
     }
     
+}
+
+// gets threats of opponent
+fn get_threats(board: [u64; 2], player: usize) -> u64 {
+    let open: u64 = !(board[0] | board[1] | 283691315109952 | 71776119061217280);
+    let opp: u64 = board[player];
+
+    let mut threats: u64 = 0;
+
+    // vertical threats
+    threats |= open & opp << 1 & opp << 2 & opp << 3;
+
+    // horizontal threats
+    threats |= open & opp << 7 & opp << 14 & opp << 21;
+    threats |= opp >> 7 & open & opp << 7 & opp << 14;
+    threats |= opp >> 7 & opp >> 14 & open & opp << 7;
+    threats |= opp >> 7 & opp >> 14 & opp >> 21 & open;
+    
+    // positive diagonol threats
+    threats |= open & opp << 8 & opp << 16 & opp << 24;
+    threats |= opp >> 8 & open & opp << 8 & opp << 16;
+    threats |= opp >> 16 & opp >> 8 & open & opp << 8;
+    threats |= opp >> 24 & opp >> 16 & opp >> 8 & open;
+
+    // negative diagonol threats
+    threats |= open & opp << 6 & opp << 12 & opp << 18;
+    threats |= opp >> 6 & open & opp << 6 & opp << 12;
+    threats |= opp >> 12 & opp >> 6 & open & opp << 6;
+    threats |= opp >> 18 & opp >> 12 & opp >> 6 & open;
+
+    threats
 }
 
 // creates empty transposition table
@@ -209,7 +208,7 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
         }
     }
 
-    let threats = pos.get_threats(1 - pos.turn);
+    let threats = get_threats(pos.board, 1 - pos.turn);
     let live_threats = pos.get_live_threats(threats);
 
     // check if the position is a loss on opponents next turn (since we cannot win on this turn)
@@ -264,11 +263,22 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
     (alpha, total_positions)
 }
 
-/*
-fn order_moves(a: &usize, b: &usize) -> Ordering {
+
+// fn order_moves(a: &usize, b: &usize) -> Ordering {
+//     // the moves are already column sorted when being passed in
+//     // therefore we do not need to consider column
+//     let threats_from_a = 
+//     let threats_from_b = 
     
-}
-*/
+//     if threats_from_a > threats_from_b {
+//         Ordering::Less
+//     } else if threats_from_a == threats_from_b {
+//         Ordering::Equal
+//     } else {
+//         Ordering::Greater
+//     }    
+// }
+
 
 #[cfg(test)]
 mod tests {
@@ -501,7 +511,7 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![1, 1, 2, 2, 3, 3]);
 
-        assert_eq!(pos.get_threats(1 - pos.turn), 2 + 2_u64.pow(29));
+        assert_eq!(get_threats(pos.board, 1 - pos.turn), 2 + 2_u64.pow(29));
     }
 
     #[test]
@@ -509,10 +519,10 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![0, 1, 0, 1, 0, 1]);
 
-        assert_eq!(pos.get_threats(1 - pos.turn), 2_u64.pow(10));
+        assert_eq!(get_threats(pos.board, 1 - pos.turn), 2_u64.pow(10));
 
         pos.make_moves(vec![1, 0, 5, 6, 5, 6]);
-        assert_eq!(pos.get_threats(1 - pos.turn), 0);
+        assert_eq!(get_threats(pos.board, 1 - pos.turn), 0);
     }
 
     #[test]
@@ -520,7 +530,7 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![1, 1, 2, 3, 2, 2, 3, 3, 6, 3]);
 
-        assert_eq!(pos.get_threats(1 - pos.turn), 1 + 2_u64.pow(32));
+        assert_eq!(get_threats(pos.board, 1 - pos.turn), 1 + 2_u64.pow(32));
     } 
 
     #[test]
@@ -528,14 +538,14 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![5, 5, 4, 3, 4, 4, 3, 3, 1, 3]);
 
-        assert_eq!(pos.get_threats(1 - pos.turn), 2_u64.pow(42) + 2_u64.pow(18));
+        assert_eq!(get_threats(pos.board, 1 - pos.turn), 2_u64.pow(42) + 2_u64.pow(18));
     } 
 
     #[test]
     fn is_losing_position_0() {
         let mut p = start_position();
         p.make_moves(vec![2, 2, 3, 3, 4]);
-        let threats = p.get_threats(1 - p.turn);
+        let threats = get_threats(p.board, 1 - p.turn);
         let live = p.get_live_threats(threats);
 
         assert_eq!(p.is_losing_position(threats, live), true)
@@ -545,7 +555,7 @@ mod tests {
     fn is_losing_position_1() {
         let mut p = start_position();
         p.make_moves(vec![1, 6, 1, 6, 2, 5, 2, 4, 3, 4, 3]);
-        let threats = p.get_threats(1 - p.turn);
+        let threats = get_threats(p.board, 1 - p.turn);
         let live = p.get_live_threats(threats);
 
         assert_eq!(p.is_losing_position(threats, live), true);
@@ -556,11 +566,11 @@ mod tests {
         let mut p = start_position();
         p.make_moves(vec![0, 2, 0, 2, 3, 3, 4, 4]);
 
-        let live = p.get_threats(1 - p.turn);
+        let threats = get_threats(p.board, 1 - p.turn);
 
-        assert_eq!(p.is_losing_move(5, live), true);
-        assert_eq!(p.is_losing_move(1, live), true);
-        assert_eq!(p.is_losing_move(6, live), false);
+        assert_eq!(p.is_losing_move(5, threats), true);
+        assert_eq!(p.is_losing_move(1, threats), true);
+        assert_eq!(p.is_losing_move(6, threats), false);
     }
 
     #[test]
@@ -568,10 +578,10 @@ mod tests {
         let mut p = start_position();
         p.make_moves(vec![0, 1, 0, 1, 0, 1, 1, 0, 2, 1, 2, 2, 2, 2, 3, 2, 3, 3, 3, 3, 4, 5]);
 
-        let live = p.get_threats(1 - p.turn);
+        let threats = get_threats(p.board, 1 - p.turn);
         
-        assert_eq!(p.is_losing_move(4, live), true);
-        assert_eq!(p.is_losing_move(3, live), false);
+        assert_eq!(p.is_losing_move(4, threats), true);
+        assert_eq!(p.is_losing_move(3, threats), false);
     }
 
     #[test]
