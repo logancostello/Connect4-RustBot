@@ -2,6 +2,7 @@ use std::path::Path;
 use std::fs;
 use std::time::{Duration, SystemTime};
 use rand::prelude::*;
+use std::cmp::Ordering;
 
 struct Position {
     board: [u64; 2], // stores bitboards for each player
@@ -82,9 +83,9 @@ impl Position {
     }
 
     // gets threats of opponent
-    pub fn opponents_threats(&self) -> u64 {
+    pub fn get_threats(&self, player: usize) -> u64 {
         let open: u64 = !(self.board[0] | self.board[1] | 283691315109952 | 71776119061217280);
-        let opp: u64 = self.board[1 - self.turn];
+        let opp: u64 = self.board[player];
 
         let mut threats: u64 = 0;
 
@@ -114,7 +115,7 @@ impl Position {
     }
 
     // get opponents live threats
-    pub fn opponents_live_threats(&self, threats: u64) -> u64 {
+    pub fn get_live_threats(&self, threats: u64) -> u64 {
         let board = self.board[0] | self.board[1] | 283691315109952; 
         (threats & board << 1) | (threats & 1) // & 1 since no bit can be undo bit 0
     }
@@ -197,16 +198,19 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
     // check if game is a tie
     if pos.moves.len() == 42 {return (0, total_positions)};
 
+    // sort moves to optimize pruning
+    let mut move_options = [3, 2, 4, 1, 5, 0, 6];
+    // move_options.sort_by(|a, b| order_moves(a, b));
+
     // check for a winning move
-    let move_options = [3, 2, 4, 1, 5, 0, 6];
     for mv in move_options {
         if pos.is_legal_move(mv) && pos.is_winning_move(mv) {
             return ((43 - pos.moves.len() as i8) / 2, total_positions);
         }
     }
 
-    let threats = pos.opponents_threats();
-    let live_threats = pos.opponents_live_threats(threats);
+    let threats = pos.get_threats(1 - pos.turn);
+    let live_threats = pos.get_live_threats(threats);
 
     // check if the position is a loss on opponents next turn (since we cannot win on this turn)
     if pos.is_losing_position(threats, live_threats) { return ((-42 + pos.moves.len() as i8) / 2, total_positions) }
@@ -259,6 +263,12 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
 
     (alpha, total_positions)
 }
+
+/*
+fn order_moves(a: &usize, b: &usize) -> Ordering {
+    
+}
+*/
 
 #[cfg(test)]
 mod tests {
@@ -491,7 +501,7 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![1, 1, 2, 2, 3, 3]);
 
-        assert_eq!(pos.opponents_threats(), 2 + 2_u64.pow(29));
+        assert_eq!(pos.get_threats(1 - pos.turn), 2 + 2_u64.pow(29));
     }
 
     #[test]
@@ -499,10 +509,10 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![0, 1, 0, 1, 0, 1]);
 
-        assert_eq!(pos.opponents_threats(), 2_u64.pow(10));
+        assert_eq!(pos.get_threats(1 - pos.turn), 2_u64.pow(10));
 
         pos.make_moves(vec![1, 0, 5, 6, 5, 6]);
-        assert_eq!(pos.opponents_threats(), 0);
+        assert_eq!(pos.get_threats(1 - pos.turn), 0);
     }
 
     #[test]
@@ -510,7 +520,7 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![1, 1, 2, 3, 2, 2, 3, 3, 6, 3]);
 
-        assert_eq!(pos.opponents_threats(), 1 + 2_u64.pow(32));
+        assert_eq!(pos.get_threats(1 - pos.turn), 1 + 2_u64.pow(32));
     } 
 
     #[test]
@@ -518,15 +528,15 @@ mod tests {
         let mut pos = start_position();
         pos.make_moves(vec![5, 5, 4, 3, 4, 4, 3, 3, 1, 3]);
 
-        assert_eq!(pos.opponents_threats(), 2_u64.pow(42) + 2_u64.pow(18));
+        assert_eq!(pos.get_threats(1 - pos.turn), 2_u64.pow(42) + 2_u64.pow(18));
     } 
 
     #[test]
     fn is_losing_position_0() {
         let mut p = start_position();
         p.make_moves(vec![2, 2, 3, 3, 4]);
-        let threats = p.opponents_threats();
-        let live = p.opponents_live_threats(threats);
+        let threats = p.get_threats(1 - p.turn);
+        let live = p.get_live_threats(threats);
 
         assert_eq!(p.is_losing_position(threats, live), true)
     }
@@ -535,8 +545,8 @@ mod tests {
     fn is_losing_position_1() {
         let mut p = start_position();
         p.make_moves(vec![1, 6, 1, 6, 2, 5, 2, 4, 3, 4, 3]);
-        let threats = p.opponents_threats();
-        let live = p.opponents_live_threats(threats);
+        let threats = p.get_threats(1 - p.turn);
+        let live = p.get_live_threats(threats);
 
         assert_eq!(p.is_losing_position(threats, live), true);
     }
@@ -546,7 +556,7 @@ mod tests {
         let mut p = start_position();
         p.make_moves(vec![0, 2, 0, 2, 3, 3, 4, 4]);
 
-        let live = p.opponents_threats();
+        let live = p.get_threats(1 - p.turn);
 
         assert_eq!(p.is_losing_move(5, live), true);
         assert_eq!(p.is_losing_move(1, live), true);
@@ -558,7 +568,7 @@ mod tests {
         let mut p = start_position();
         p.make_moves(vec![0, 1, 0, 1, 0, 1, 1, 0, 2, 1, 2, 2, 2, 2, 3, 2, 3, 3, 3, 3, 4, 5]);
 
-        let live = p.opponents_threats();
+        let live = p.get_threats(1 - p.turn);
         
         assert_eq!(p.is_losing_move(4, live), true);
         assert_eq!(p.is_losing_move(3, live), false);
@@ -592,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/Start-Hard.txt");
+        let result = check_progress("test_files/Start-Easy.txt");
         assert_eq!(result, (0.0, 0.0, 0));
     }    
 }
