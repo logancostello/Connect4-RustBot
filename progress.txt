@@ -58,7 +58,7 @@ Start-Easy: n/a
 Start-Medium: n/a 
 Start-Hard: n/a
 
-Version 6.1: Transposition Table (6.4mb, stack allocated)
+Version 6.1: Transposition Table (stack allocated)
 End-Easy: 100%, 0.000009 seconds, 49 positions
 Middle-Easy: 100%, 0.001681 seconds, 40,978 positions
 Middle_Medium: 100%, 0.034100 seconds, 836,605 positions
@@ -66,7 +66,7 @@ Start-Easy: 100%, 9.514947 seconds, 252,198,230 positions (laptop slept during r
 Start-Medium: n/a 
 Start-Hard: n/a
 
-Version 6.2: Larger Transposition Table (64mb, heap allocated)
+Version 6.2: Larger Transposition Table (8mb, heap allocated)
 End-Easy: 100%, 0.000427 seconds, 49 positions
 Middle-Easy: 100%, 0.001277 seconds, 16,011 positions
 Middle_Medium: 100%, 0.012167 seconds, 231,345 positions
@@ -113,3 +113,11 @@ Middle_Medium: 100%, 0.003674 seconds, 37,775 positions
 Start-Easy: 100%, 0.000697 seconds, 3,730 positions
 Start-Medium: 100%, 0.119013 seconds, 1,697,570 positions
 Start-Hard: 100%, 10.664722 seconds, 151,428,942 positions
+
+Version 9: Prime TT Size (+ 2 changes with tiny effects)
+End-Easy: 100%, 0.000409 seconds, 56 positions
+Middle-Easy: 100%, 0.000461 seconds, 469 positions
+Middle_Medium: 100%, 0.003537 seconds, 36,089 positions
+Start-Easy: 100%, 0.000678 seconds, 3,717 positions
+Start-Medium: 100%, 0.085797 seconds, 1,265,912 positions
+Start-Hard: 100%, 6.564645 seconds, 10,2314,360 positions

@@ -34,7 +34,7 @@ impl Position {
         self.height_mask ^= move_mask | move_mask << 1;
     }
 
-    // play multiple moves. used for tests
+    // play multiple moves. convinient for testing
     pub fn make_moves(&mut self, cols: Vec<usize>) {
         for col in cols {
             self.make_move(col);
@@ -89,7 +89,25 @@ impl Position {
 
     // get unique key that represents the position
     pub fn hash(&self) -> u64 {
-        self.board[self.turn] | self.height_mask
+        let hash: u64 = self.board[self.turn] | self.height_mask;
+
+        // arbitrarily return the lower hash, since both positions are essentially the same
+        if self.get_col_height_mask(0) >= self.get_col_height_mask(6) >> 42 {
+            return hash
+        } 
+
+        // connect 4 is symmetrical, so the mirrored board has the same score
+        let mut mirrored_hash: u64 = 0;
+        let col_mask: u64 = 127;
+        mirrored_hash |= (hash & col_mask) << 42;
+        mirrored_hash |= (hash & col_mask << 7) << 28;
+        mirrored_hash |= (hash & col_mask << 14) << 14;
+        mirrored_hash |= hash & col_mask << 21;
+        mirrored_hash |= (hash & col_mask << 28) >> 14;
+        mirrored_hash |= (hash & col_mask << 35) >> 28;
+        mirrored_hash |= (hash & col_mask << 42) >> 42;
+
+        mirrored_hash
     }
 }
 
@@ -125,14 +143,14 @@ fn get_threats(board: [u64; 2], player: usize) -> u64 {
 }
 
 // creates empty transposition table
-fn create_tt() -> Box<[u64; 1000000]> {
+fn create_tt() -> Box<[u64; 1000003]> {
     // the tt stores u64s, so 64 bits of information
     // Bits 0-48 hold the key, to confirm we are colliding while searching
     // Bit 49-50 hold the alphabeta flag. 00 for lowerbound, 01 for exact, 10 for upperbound
     // Bit 51 holds the sign of the score. 1 is negative
     // Bits 52-56 holds the absolute value of the score
     // Bits 57-63 are unused
-    Box::new([0; 1000000])
+    Box::new([0; 1000003])
 }
 
 // takes a position, iteratively deepens to find its score, returns score and # positions searched
@@ -165,11 +183,11 @@ fn score(pos: &mut Position) -> (i8, u64) {
 }
 
 // takes a position, does a negamax search, returns its score and how many positions were searched
-fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1000000]>) -> (i8, u64) {
+fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1000003]>) -> (i8, u64) {
 
     // use prior search if one exists
     let hash = pos.hash();
-    let tt_record: u64 = tt[(pos.hash() % 1000000) as usize];
+    let tt_record: u64 = tt[(hash % 1000003) as usize];
     if hash == (tt_record & (2_u64.pow(49) - 1)) { // confirm record is for the position we are searching
         let flag = tt_record >> 49 & 0b11;
         let mut score: i8 = (tt_record >> 52 & 0b1111) as i8;
@@ -181,7 +199,6 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
         } else { // upperbound
             if score < beta { beta = score }
         }
-
         if alpha >= beta { return (alpha, 0) };
     }
 
@@ -197,19 +214,14 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
 
     let mut move_options = [3, 2, 4, 1, 5, 0, 6];
 
-    // check for a winning move
-    for mv in move_options {
-        if pos.is_legal_move(mv) && pos.is_winning_move(mv) {
-            return ((43 - pos.moves.len() as i8) / 2, total_positions);
-        }
-    }
-
     // get threats for various reasons
     let threats = get_threats(pos.board, 1 - pos.turn);
     let live_threats = pos.get_live_threats(threats);
 
     // check if the position is a loss on opponents next turn (since we cannot win on this turn)
-    if pos.is_losing_position(threats, live_threats) { return ((-42 + pos.moves.len() as i8) / 2, total_positions) }
+    if pos.is_losing_position(threats, live_threats) { 
+        return ((-42 + pos.moves.len() as i8) / 2, total_positions) 
+    }
 
     // beta should be <= the max possible score
     let max_possible_score: i8 = (41 - pos.moves.len() as i8) / 2;
@@ -258,7 +270,7 @@ fn negamax(pos: &mut Position, mut alpha: i8, mut beta: i8, tt: &mut Box<[u64; 1
     } else { // exact
         into_tt |= 0b01 << 49;
     }
-    tt[(hash % 1000000) as usize] = into_tt; // store the value
+    tt[(hash % 1000003) as usize] = into_tt; // store the value
 
     (alpha, total_positions)
 }
@@ -616,15 +628,16 @@ mod tests {
     #[test]
     fn test_hash_1() {
         let mut p = start_position();
-        p.make_moves(vec![0, 0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 6, 6, 6, 6, 6, 6]);
-        assert_eq!(p.hash(), 0b1010101000000100000100110101001010100001010001010);
+        p.make_moves(vec![0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3]);
+        assert_eq!(p.hash(), 0b0000001000000100000011000000111111110000001111111);
     }
 
     #[test]
     fn test_hash_2() {
-        let mut p = start_position();
-        p.make_moves(vec![0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3]);
-        assert_eq!(p.hash(), 0b0000001000000100000011000000111111110000001111111);
+        let mut pos = start_position();
+        pos.make_move(6);
+
+        assert_eq!(pos.hash(), 0b0000001000000100000010000001000000100000010000010);
     }
     
     #[test]
@@ -661,7 +674,7 @@ mod tests {
 
     #[test]
     fn test_progress_check() { // used to check efficiency progress, will not pass
-        let result = check_progress("test_files/Start-Easy.txt");
+        let result = check_progress("test_files/Start-Hard.txt");
         assert_eq!(result, (0.0, 0.0, 0));
     }    
 }
