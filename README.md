@@ -185,12 +185,12 @@ The basic idea is that given some number n and two coprime numbers x and y, ther
 our transposition table is smaller, meaning less memory used and less overhead of managing the table.
 
 **Efficiency**  
-End-Easy: 0.000222 seconds, 56 positions
-Middle-Easy: 0.000255 seconds, 469 positions
-Middle_Medium: 0.003128 seconds, 36,081 positions
-Start-Easy: 0.000474 seconds, 3,717 positions
-Start-Medium: 0.081715 seconds, 1,265,745 positions
-Start-Hard: 6.528422 seconds, 102,216,383 positions
+End-Easy: 0.000222 seconds, 56 positions   
+Middle-Easy: 0.000255 seconds, 469 positions   
+Middle_Medium: 0.003128 seconds, 36,081 positions   
+Start-Easy: 0.000474 seconds, 3,717 positions   
+Start-Medium: 0.081715 seconds, 1,265,745 positions    
+Start-Hard: 6.528422 seconds, 102,216,383 positions    
 
 ## The Future?
 Currently, I'm pretty happy with the results. I wish I could get the solve time under a seconds for the hardest set, but considering a naive approach would need to search 
